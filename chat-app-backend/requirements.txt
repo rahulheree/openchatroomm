@@ -6,6 +6,7 @@ alembic
 pydantic
 pydantic-settings
 python-dotenv
+redis
 aioredis
 itsdangerous
 pywebpush
@@ -15,3 +16,4 @@ slowapi
 python-multipart
 boto3
 fastapi-cache2[redis]
+prometheus-fastapi-instrumentator
