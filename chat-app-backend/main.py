@@ -170,8 +170,17 @@ async def on_startup():
     await create_db_and_tables()
     print("✅ Database tables initialized.")
 
+    redis_url = settings.REDIS_URL
+    if not redis_url.startswith("redis://") and not redis_url.startswith("rediss://"):
+        print("⚠️ Warning: REDIS_URL missing scheme. Defaulting to rediss://")
+        redis_url = f"rediss://{redis_url}"
+    
+    # Mask password for logging
+    masked_redis = redis_url.split("@")[-1] if "@" in redis_url else "********"
+    print(f"Connecting to Redis at ...{masked_redis}")
+
     redis_conn = aioredis.from_url(
-        settings.REDIS_URL,
+        redis_url,
         encoding="utf8",
         decode_responses=True,
     )
