@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
+alembic
+pydantic
+pydantic-settings
+python-dotenv
+aioredis
+itsdangerous
+pywebpush
+requests
+beautifulsoup4
+slowapi
+python-multipart
+boto3
+fastapi-cache2[redis]
