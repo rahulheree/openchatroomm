@@ -39,8 +39,8 @@ async def start_session(
         key="session_id",
         value=session_id,
         httponly=True,
-        secure=False,  
-        samesite="lax"
+        secure=True,         # Must be True for SameSite=None
+        samesite="none"      # Required for Cross-Site (Vercel -> Render)
     )
     return user
 
