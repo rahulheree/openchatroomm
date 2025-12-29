@@ -30,7 +30,10 @@ class ConnectionManager:
 
 class RedisManager:
     def __init__(self):
-        self.redis_conn = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        url = settings.REDIS_URL
+        if not url.startswith("redis://") and not url.startswith("rediss://"):
+             url = f"rediss://{url}"
+        self.redis_conn = redis.from_url(url, decode_responses=True)
 
     async def publish_message(self, room_id: int, message: schemas.Message):
         channel = f"room:{room_id}"
