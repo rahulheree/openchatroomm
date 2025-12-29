@@ -1,7 +1,18 @@
 import axios from "axios";
 
+const getBaseUrl = () => {
+  let url = import.meta.env.VITE_API_URL;
+  if (!url) return "http://localhost:8000/api/v1";
+
+  if (!url.endsWith("/api/v1")) {
+    // Remove trailing slash if present then add /api/v1
+    url = url.replace(/\/$/, "") + "/api/v1";
+  }
+  return url;
+};
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1",
+  baseURL: getBaseUrl(),
   withCredentials: true,
 });
 
