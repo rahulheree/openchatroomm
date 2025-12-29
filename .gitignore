@@ -29,7 +29,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-index.html
+
 test.json
 *.manifest
 *.spec
