@@ -2,6 +2,7 @@ venv/
 env
 # Byte-compiled / optimized / DLL files
 pycache/
+__pycache__
 *.py[cod]
 *$py.class
 
@@ -15,8 +16,7 @@ uploaded_files/
 build/
 develop-eggs/
 dist/
-downloads/
-eggs/
+downloads/eggs/
 .eggs/
 lib/
 lib64/
@@ -92,7 +92,7 @@ poetry.lock
 .pdm-python
 .pdm-build/
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+# PEP 582
 pypackages/
 
 # Celery stuff
@@ -111,44 +111,13 @@ ENV/
 env.bak/
 venv.bak/
 
-# Spyder project settings
+# IDEs
 .spyderproject
 .spyproject
-
-# Rope project settings
 .ropeproject
+.vscode/
+.idea/
 
-# mkdocs documentation
-/site
-
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-#.idea/
-
-# PyPI configuration file
-.pypirc
-
-# celery
-celerybeat-schedule.db
-.vscode/PythonImportHelper-v2-Completion.json
-otel-pid
-main.py
-# core
-
-# internal system files.
+# Custom
+minio.exe
 minio.deb
-celerybeat-schedule.bak
-celerybeat-schedule.dir
-celerybeat-schedule.dat
