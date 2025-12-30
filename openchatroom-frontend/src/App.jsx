@@ -273,7 +273,7 @@ function App() {
                 // Auto-reconnect logic could be added here
             } catch (e) {
                 console.error(e);
-                alert("Connection failed: " + (e.message));
+                setNotification("Connection Failed: " + (e.response?.status === 401 ? "Login Expired" : "Network Error"));
                 setIsConnecting(false);
             }
         };
@@ -304,7 +304,7 @@ function App() {
             if (errorMsg.includes("already a member")) {
                 setSelectedRoom(room); // Safe to proceed
             } else {
-                alert("Could not join: " + errorMsg);
+                setNotification("Error: " + errorMsg);
             }
         }
     };
