@@ -12,11 +12,11 @@ const apiClient = axios.create({
 
 export const startSession = (name) => apiClient.post("/session/start", { name });
 export const getMySession = () => apiClient.get("/session/me");
-export const getSessionToken = () => apiClient.get("/session/token"); // Added for WS Auth
+export const getSessionToken = () => apiClient.get("/session/token");
 
 export const createRoom = (roomData) => apiClient.post("/rooms", roomData);
 export const getCommunityRooms = () => apiClient.get("/rooms/community");
-export const getUserspaceRooms = () => apiClient.get(`/rooms/userspaces?t=${Date.now()}`); // Added Cache Buster
+export const getUserspaceRooms = () => apiClient.get(`/rooms/userspaces?t=${Date.now()}`);
 export const getMyRooms = () => apiClient.get("/rooms/my");
 export const getRoom = (roomId) => apiClient.get(`/rooms/${roomId}`);
 export const deleteRoom = (roomId) => apiClient.delete(`/rooms/${roomId}`);
@@ -39,52 +39,22 @@ export const uploadFile = (file) => {
 
 const showBrowserNotification = (room, message) => {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
     const title = `New message in ${room.name}`;
-    const options = {
-        body: `${message.author.name}: ${message.content || 'Sent an attachment'}`,
-        icon: '/favicon.ico',
-        tag: room.id,
-    };
-
-    new Notification(title, options);
+    new Notification(title, { body: `${message.author.name}: ${message.content || 'Attachment'}`, icon: '/favicon.ico', tag: room.id });
 };
+
+// --- MODALS ---
 
 const LoginModal = ({ onLogin, onClose }) => {
     const [name, setName] = useState("");
-    const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-
-    const handleLogin = async () => {
-        if (!name.trim()) {
-            setError("Please enter a name.");
-            return;
-        }
-        setIsLoading(true);
-        setError("");
-        try {
-            const { data: user } = await startSession(name);
-            if (user) {
-                onLogin(user);
-                onClose();
-            }
-        } catch (err) {
-            console.error("Login error:", err);
-            setError("Failed to log in. Please try again.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
-            <motion.div initial={{ scale: 0.9, y: -20, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.9, y: -20, opacity: 0 }} className="w-full max-w-sm p-8 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold text-center mb-2">Welcome to OpenChat</h2>
-                <p className="text-center text-slate-500 mb-6">Enter your name to join the conversation.</p>
-                <input value={name} onChange={(e) => setName(e.target.value)} onKeyPress={(e) => e.key === "Enter" && !isLoading && handleLogin()} placeholder="Your display name..." className="w-full p-3 rounded-lg bg-slate-100 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition-all" autoFocus disabled={isLoading} />
-                {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
-                <button onClick={handleLogin} disabled={isLoading} className="w-full mt-6 p-3 bg-[#4f46e5] text-white rounded-lg font-semibold hover:bg-[#4338ca] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
-                    {isLoading ? "Joining..." : "Join Chat"}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="w-full max-w-sm p-6 bg-white rounded-xl shadow-2xl" onClick={e => e.stopPropagation()}>
+                <h2 className="text-xl font-bold mb-4 text-center">Join OpenChat</h2>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="Display Name" className="w-full p-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" autoFocus />
+                <button onClick={() => { setIsLoading(true); startSession(name).then(r => onLogin(r.data)) }} disabled={isLoading} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50">
+                    {isLoading ? "Joining..." : "Enter"}
                 </button>
             </motion.div>
         </motion.div>
@@ -92,49 +62,37 @@ const LoginModal = ({ onLogin, onClose }) => {
 };
 
 const CreateRoomModal = ({ onClose, onRoomCreated }) => {
-    const [roomName, setRoomName] = useState("");
+    const [name, setName] = useState("");
     const [isPublic, setIsPublic] = useState(true);
-    const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
     const handleCreate = async () => {
-        if (!roomName.trim()) {
-            setError("Room name cannot be empty.");
-            return;
-        }
+        if (!name.trim()) return alert("Name required");
         setIsLoading(true);
         try {
-            const { data: newRoom } = await createRoom({ name: roomName, is_public: isPublic });
-            onRoomCreated(newRoom);
+            const { data } = await createRoom({ name, is_public: isPublic });
+            onRoomCreated(data);
             onClose();
-        } catch (err) {
-            setError("Failed to create room. Please try again.");
-            console.error("Create room error:", err);
-        } finally {
-            setIsLoading(false);
-        }
+        } catch (e) { alert("Error: " + e.message); setIsLoading(false); }
     };
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="w-full max-w-lg p-8 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold mb-5">Create a New Space</h2>
-                <p className="text-slate-500 mb-1">Space Name</p>
-                <input type="text" value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="e.g. #project-phoenix" className="w-full p-3 rounded-lg bg-slate-100 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] mb-5" autoFocus />
-                <div className="flex items-center justify-between bg-slate-100 p-3 rounded-lg border border-slate-300">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="w-full max-w-md p-6 bg-white rounded-xl shadow-2xl" onClick={e => e.stopPropagation()}>
+                <h2 className="text-xl font-bold mb-6">Create New Space</h2>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="#space-name" className="w-full p-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" autoFocus />
+
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border mb-6">
                     <div>
-                        <label htmlFor="isPublic" className="font-medium text-slate-800">Public Space</label>
-                        <p className="text-sm text-slate-500">Discoverable by anyone in the community.</p>
+                        <div className="font-semibold text-sm">Public Space</div>
+                        <div className="text-xs text-slate-500">Visible in Userspaces/Community</div>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="isPublic" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="sr-only peer" />
-                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4f46e5]"></div>
-                    </label>
+                    <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="accent-blue-600 w-5 h-5" />
                 </div>
-                {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
-                <div className="flex justify-end gap-4 mt-6">
-                    <button onClick={onClose} className="px-5 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
-                    <button onClick={handleCreate} disabled={isLoading} className="px-5 py-2 rounded-lg bg-[#4f46e5] text-white font-semibold hover:bg-[#4338ca] disabled:opacity-50">
+
+                <div className="flex justify-end gap-2">
+                    <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
+                    <button onClick={handleCreate} disabled={isLoading} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50">
                         {isLoading ? "Creating..." : "Create Space"}
                     </button>
                 </div>
@@ -143,174 +101,29 @@ const CreateRoomModal = ({ onClose, onRoomCreated }) => {
     );
 };
 
-
 const JoinByInviteModal = ({ onClose, onJoin }) => {
-    const [inviteLink, setInviteLink] = useState("");
-    const [error, setError] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-
+    const [link, setLink] = useState("");
     const handleJoin = async () => {
-        if (!inviteLink.trim()) {
-            setError("Please paste an invite link.");
-            return;
-        }
-        const tokenMatch = inviteLink.match(/\/invite\/([a-fA-F0-9-]+)/);
-        if (!tokenMatch || !tokenMatch[1]) {
-            setError("Invalid invite link format.");
-            return;
-        }
-        const token = tokenMatch[1];
-        setIsLoading(true);
-        setError("");
+        const token = link.match(/\/invite\/([a-zA-Z0-9-]+)/)?.[1];
+        if (!token) return alert("Invalid Link");
         try {
-            const { data: room } = await getRoomByInvite(token);
-            await onJoin(room);
+            const { data } = await getRoomByInvite(token);
+            await onJoin(data);
             onClose();
-        } catch (err) {
-            console.error("Join by invite error:", err);
-            setError(err.response?.data?.detail || "Failed to find room from invite.");
-        } finally {
-            setIsLoading(false);
-        }
+        } catch (e) { alert("Invalid or Expired Invite"); }
     };
-
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className="w-full max-w-lg p-8 bg-white rounded-2xl border border-slate-200 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold mb-4">Join by Invite</h2>
-                <p className="text-slate-500 mb-1">Invite Link</p>
-                <input type="text" value={inviteLink} onChange={(e) => setInviteLink(e.target.value)} placeholder="Paste invite link here..." className="w-full p-3 rounded-lg bg-slate-100 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] mb-4" autoFocus />
-                {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-                <div className="flex justify-end gap-3 mt-6">
-                    <button onClick={onClose} className="px-5 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
-                    <button onClick={handleJoin} disabled={isLoading} className="px-5 py-2 rounded-lg bg-[#4f46e5] text-white font-semibold hover:bg-[#4338ca] disabled:opacity-50">
-                        {isLoading ? "Joining..." : "Join"}
-                    </button>
-                </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
+            <motion.div className="w-full max-w-md p-6 bg-white rounded-xl shadow-2xl" onClick={e => e.stopPropagation()}>
+                <h2 className="text-xl font-bold mb-4">Join via Link</h2>
+                <input value={link} onChange={e => setLink(e.target.value)} placeholder="Paste https://.../invite/..." className="w-full p-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" />
+                <button onClick={handleJoin} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">Join Space</button>
             </motion.div>
         </motion.div>
     );
 };
 
-
-const RoomCard = ({ room, onSelect, isJoined }) => (
-    <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col justify-between transition-all hover:border-slate-300 hover:bg-slate-50">
-        <div>
-            <span className="font-bold flex items-center gap-2"><Hash size={18} className="text-slate-500" />{room.name}</span>
-            <p className="text-sm text-slate-500 mt-2">{room.active_users || 0} user{room.active_users !== 1 && 's'} online</p>
-        </div>
-        <div className="mt-4">
-            <button onClick={() => onSelect(room)} className={`w-full text-sm font-semibold py-2 px-3 rounded-lg transition-colors ${isJoined ? "bg-slate-200 text-slate-800 hover:bg-slate-300" : "bg-[#4f46e5] text-white hover:bg-[#4338ca]"}`}>
-                {isJoined ? "Enter Chat" : "Join Space"}
-            </button>
-        </div>
-    </div>
-);
-
-const ChatPanel = ({ room, messages, user, onSendMessage, onInvite, onDelete, onLeave, onFileUpload, isExpanded, onToggleExpand, onToggleMembersList }) => {
-    const messagesEndRef = useRef(null);
-    const fileInputRef = useRef(null);
-    const [messageContent, setMessageContent] = useState("");
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
-
-    const handleSend = () => {
-        if (messageContent.trim()) {
-            onSendMessage({ content: messageContent, type: 'text' });
-            setMessageContent("");
-        }
-    };
-
-    const handleFileChange = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            onFileUpload(file);
-            event.target.value = null;
-        }
-    };
-
-    if (!room) {
-        return (
-            <div className="flex-1 flex items-center justify-center bg-transparent">
-                <div className="text-center p-8 bg-white rounded-lg border border-slate-200">
-                    <MessageSquare size={48} className="mx-auto text-slate-400 mb-4" />
-                    <h3 className="text-xl font-bold text-slate-800 mb-2">Welcome to OpenChat</h3>
-                    <p className="text-slate-500">Select a room from the left to start chatting.</p>
-                </div>
-            </div>
-        );
-    }
-
-    const isOwner = user?.id === room.owner_id;
-
-    return (
-        <div className="flex-1 flex flex-col bg-white h-full rounded-lg border border-slate-200">
-            <header className="flex justify-between items-center p-4 border-b border-slate-200 flex-shrink-0">
-                <h3 className="font-bold text-lg flex items-center gap-2"><Hash size={22} className="text-slate-400" /> {room.name}</h3>
-                <div className="flex items-center gap-1">
-                    <button onClick={onToggleMembersList} title="Toggle Members List" className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-800">
-                        <Users size={18} />
-                    </button>
-                    <button onClick={onToggleExpand} title={isExpanded ? "Minimize" : "Expand"} className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-800">
-                        {isExpanded ? <Minimize size={18} /> : <Maximize size={18} />}
-                    </button>
-                    <button onClick={() => onInvite(room.id)} title="Create Invite Link" className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-800"><Link size={18} /></button>
-                    {isOwner ? (
-                        <button onClick={() => onDelete(room.id)} title="Delete Room" className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"><Trash2 size={18} /></button>
-                    ) : (
-                        <button onClick={() => onLeave(room.id)} title="Leave Room" className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"><LogOut size={18} /></button>
-                    )}
-                </div>
-            </header>
-            <div className="flex-1 p-4 overflow-y-auto space-y-5">
-                <AnimatePresence>
-                    {messages.map((msg) => (
-                        <motion.div key={msg.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-3 items-start ${msg.author.id === user?.id ? "flex-row-reverse" : ""}`}>
-                            <div className="w-9 h-9 rounded-full bg-slate-300 flex items-center justify-center text-sm font-bold flex-shrink-0 ring-2 ring-white">{msg.author.name.charAt(0).toUpperCase()}</div>
-                            <div className={`p-3 rounded-lg max-w-lg relative ${msg.author.id === user?.id ? "bg-[#4f46e5] text-white" : "bg-slate-100 text-slate-800"}`}>
-                                <p className={`font-semibold text-sm mb-1 ${msg.author.id === user?.id ? "text-slate-200" : "text-slate-700"}`}>{msg.author.name}</p>
-                                {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
-                                {msg.file_url && (
-                                    <div className="mt-2">
-                                        {/\.(jpg|jpeg|png|gif)$/i.test(msg.file_url) ? (
-                                            <img src={msg.file_url} alt="Uploaded content" className="rounded-lg max-w-xs cursor-pointer" onClick={() => window.open(msg.file_url, '_blank')} />
-                                        ) : (
-                                            <a href={msg.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-slate-200/50 rounded-lg hover:bg-slate-200 transition-colors">
-                                                <Paperclip size={18} className="text-slate-500" />
-                                                <span className="text-blue-500 hover:underline text-sm">View Attachment</span>
-                                            </a>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </motion.div>
-                    ))}
-                </AnimatePresence>
-                <div ref={messagesEndRef} />
-            </div>
-            <footer className="p-4 border-t border-slate-200 flex items-center gap-3 flex-shrink-0 bg-white rounded-b-lg">
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-                <button onClick={() => fileInputRef.current.click()} disabled={!user} className="p-3 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 hover:text-slate-800 transition-colors"><Paperclip size={20} /></button>
-                <div className="relative flex-1">
-                    <input type="text" placeholder={user ? `Message #${room.name}...` : "Log in to send a message"} value={messageContent} onChange={(e) => setMessageContent(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSend()} className="w-full pl-4 pr-12 py-3 bg-slate-100 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4f46e5] text-slate-800 transition-all" disabled={!user} />
-                    <button onClick={handleSend} disabled={!user || !messageContent.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-[#4f46e5] text-white rounded-md font-semibold hover:bg-[#4338ca] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><Send size={20} /></button>
-                </div>
-            </footer>
-        </div>
-    );
-};
-
-const ToastNotification = ({ message, onDismiss }) => {
-    useEffect(() => {
-        const timer = setTimeout(onDismiss, 3000);
-        return () => clearTimeout(timer);
-    }, [onDismiss]);
-
-    return (<motion.div initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed top-5 left-1/2 -translate-x-1/2 p-3 px-5 bg-blue-500 text-white rounded-full shadow-lg z-50 text-sm font-medium">{message}</motion.div>);
-};
-
+// --- APP ---
 
 function App() {
     const [user, setUser] = useState(null);
@@ -323,496 +136,334 @@ function App() {
     const [isLoginModalOpen, setLoginModalOpen] = useState(false);
     const [isCreateRoomModalOpen, setCreateRoomModalOpen] = useState(false);
     const [isJoinModalOpen, setJoinModalOpen] = useState(false);
-    const [isChatExpanded, setIsChatExpanded] = useState(false);
     const [notification, setNotification] = useState(null);
-    const ws = useRef(null);
-    const [activeTab, setActiveTab] = useState('community');
-    const [publicSearchQuery, setPublicSearchQuery] = useState("");
-    const [myRoomsSearchQuery, setMyRoomsSearchQuery] = useState("");
+
+    // UI State
+    const [activeTab, setActiveTab] = useState('community'); // 'community' | 'userspaces'
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isMembersVisible, setMembersVisible] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
-    const [isMembersListVisible, setMembersListVisible] = useState(false);
-    const profileRef = useRef(null);
 
-    const notifiedMessageIds = useRef(new Set());
+    const ws = useRef(null);
+    const messagesEndRef = useRef(null);
 
-
+    // Initial Load
     useEffect(() => {
-
-        document.documentElement.classList.remove('dark');
+        getMySession().then(r => setUser(r.data)).catch(() => { });
+        refreshPublicRooms();
+        const i = setInterval(refreshPublicRooms, 10000);
+        return () => clearInterval(i);
     }, []);
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (profileRef.current && !profileRef.current.contains(event.target)) {
-                setProfileOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
-
-    const fetchAllPublicRooms = async () => {
-        try {
-            const [communityRes, userspaceRes] = await Promise.all([getCommunityRooms(), getUserspaceRooms()]);
-            setCommunityRooms(communityRes.data);
-            setUserspaceRooms(userspaceRes.data);
-        } catch (error) {
-            console.error("Failed to fetch public rooms:", error);
-        }
-    };
-
-    const fetchMyRooms = async () => {
-        if (!user) return;
-        try {
-            const { data } = await getMyRooms();
-            setMyRooms(data);
-        } catch (error) {
-            if (error.response?.status !== 401) console.error("Failed to fetch my rooms:", error);
-        }
-    };
-
-    useEffect(() => {
-        const initializeApp = async () => {
-            await fetchAllPublicRooms();
-            try {
-                const { data } = await getMySession();
-                setUser(data);
-            } catch (error) {
-
-            }
-        };
-        initializeApp();
-    }, []);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (!selectedRoom) {
-                fetchAllPublicRooms();
-            }
-        }, 5000);
-
-        return () => clearInterval(interval);
-    }, [selectedRoom]);
-
-
+    // Polling & Updates
     useEffect(() => {
         if (user) {
-            fetchMyRooms();
-            if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission();
-            }
+            getMyRooms().then(r => setMyRooms(r.data)).catch(() => { });
         }
-    }, [user]);
+    }, [user, notification]);
 
+    const refreshPublicRooms = async () => {
+        try {
+            const [c, u] = await Promise.all([getCommunityRooms(), getUserspaceRooms()]);
+            setCommunityRooms(c.data);
+            setUserspaceRooms(u.data);
+        } catch (e) { }
+    };
 
+    // WebSocket
     useEffect(() => {
-        if (!user || myRooms.length === 0) return;
+        if (!selectedRoom || !user) return;
 
-        const interval = setInterval(async () => {
-            for (const room of myRooms) {
-                try {
-
-                    const { data: recentMessages } = await apiClient.get(`/rooms/${room.id}/messages?limit=10`);
-
-                    recentMessages.forEach((msg) => {
-
-                        if (!notifiedMessageIds.current.has(msg.id) && msg.author.id !== user.id) {
-                            notifiedMessageIds.current.add(msg.id);
-
-                            setMyRooms(prevRooms =>
-                                prevRooms.map(r =>
-                                    r.id === room.id ? { ...r, unread_count: (r.unread_count || 0) + 1 } : r
-                                )
-                            );
-
-                            if (!document.hasFocus()) {
-                                showBrowserNotification(room, msg);
-                            }
-                        }
-                    });
-                } catch (err) {
-                    console.error(`Polling failed for room ${room.name}:`, err);
-                }
-            }
-        }, 10000);
-
-        return () => clearInterval(interval);
-    }, [myRooms, user]);
-
-    useEffect(() => {
-        if (!selectedRoom || !user) {
-            if (ws.current) {
-                ws.current.close();
-                ws.current = null;
-            }
-            setMembers([]);
-            setMembersListVisible(false);
-            return;
-        }
-
-        const fetchRoomDetails = async () => {
+        const connect = async () => {
             try {
-                const [messagesRes, membersRes] = await Promise.all([getRoomMessages(selectedRoom.id), getRoomMembers(selectedRoom.id)]);
-                setMessages(messagesRes.data.reverse());
-                setMembers(membersRes.data);
-            } catch (error) {
-                console.error("Failed to fetch room details:", error);
-                setNotification("Could not load room details.");
-            }
-        };
-        fetchRoomDetails();
+                // Fetch Messages First
+                const [msgs, mems] = await Promise.all([getRoomMessages(selectedRoom.id), getRoomMembers(selectedRoom.id)]);
+                setMessages(msgs.data.reverse());
+                setMembers(mems.data);
 
-        // WS CONNECTION LOGIC (PATCHED FOR TOKEN AUTH)
-        const connectWS = async () => {
-            try {
+                // Connect WS with Token
                 const { data } = await getSessionToken();
                 const sessionToken = data.token;
-
-                const apiUrl = import.meta.env.VITE_API_URL || "";
-                let wsUrl;
-
-                if (apiUrl.startsWith("http")) {
-                    const wsProtocol = apiUrl.startsWith("https") ? "wss" : "ws";
-                    const hostPath = apiUrl.replace(/^https?:\/\//, "");
-                    wsUrl = `${wsProtocol}://${hostPath}/ws/${selectedRoom.id}?token=${sessionToken}`;
-                } else {
-                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    wsUrl = `${wsProtocol}//${window.location.host}/api/v1/ws/${selectedRoom.id}?token=${sessionToken}`;
-                }
+                const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+                const host = window.location.host;
+                const wsUrl = `${proto}://${host}/api/v1/ws/${selectedRoom.id}?token=${sessionToken}`;
 
                 const socket = new WebSocket(wsUrl);
                 ws.current = socket;
 
-                socket.onmessage = (event) => {
-                    const messageData = JSON.parse(event.data);
-
-                    if (messageData.room_id === selectedRoom.id) {
-                        setMessages((prev) => {
-                            if (prev.some(msg => msg.id === messageData.id)) return prev;
-                            return [...prev, messageData];
-                        });
+                socket.onmessage = (e) => {
+                    const msg = JSON.parse(e.data);
+                    if (msg.room_id === selectedRoom.id) {
+                        setMessages(p => p.find(m => m.id === msg.id) ? p : [...p, msg]);
                     }
-
-                    if (notifiedMessageIds.current.has(messageData.id)) return;
-                    if (messageData.author.id === user.id) return;
-                    notifiedMessageIds.current.add(messageData.id);
-                    setMyRooms(prev => prev.map(room => room.id === messageData.room_id ? { ...room, unread_count: (room.unread_count || 0) + 1 } : room));
-
-                    if (!document.hasFocus() || messageData.room_id !== selectedRoom.id) {
-                        const notifyingRoom = myRooms.find(r => r.id === messageData.room_id);
-                        if (notifyingRoom) showBrowserNotification(notifyingRoom, messageData);
-                    }
+                    if (!document.hasFocus() && msg.author.id !== user.id) showBrowserNotification(selectedRoom, msg);
                 };
-
-                socket.onclose = () => console.log("WebSocket disconnected from", selectedRoom.name);
-                socket.onerror = (err) => console.error("WebSocket error:", err);
-            } catch (e) { console.error("WS Connect Error", e); }
+            } catch (e) { console.error(e); }
         };
+        connect();
+        return () => ws.current?.close();
+    }, [selectedRoom, user]);
 
-        connectWS();
+    // Scroll to bottom
+    useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages]);
 
-        return () => {
-            if (ws.current) ws.current.close();
-        };
-    }, [selectedRoom, user]); // Removed myRooms to prevent loops
+    // Handlers
+    const handleRoomSelect = async (room) => {
+        if (!user) return setLoginModalOpen(true);
+        if (!myRooms.find(r => r.id === room.id)) {
+            await joinRoom(room.id);
+            setMyRooms(p => [...p, room]);
+        }
+        setSelectedRoom(room);
+        setMembersVisible(false); // Reset on room switch (optional)
+        // Ensure My Rooms list updates unread count
+        setMyRooms(p => p.map(r => r.id === room.id ? { ...r, unread_count: 0 } : r));
+    };
 
-    const handleLogin = (loggedInUser) => {
-        setUser(loggedInUser);
-        setLoginModalOpen(false);
+    const handleSend = () => {
+        const input = document.getElementById('msg-input');
+        const content = input.value.trim();
+        if (!content) return;
+        if (ws.current?.readyState === WebSocket.OPEN) {
+            ws.current.send(JSON.stringify({ content, type: 'text' }));
+            input.value = '';
+        }
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const { data } = await uploadFile(file);
+            ws.current?.send(JSON.stringify({ content: '', file_url: data.file_url, type: 'file' }));
+        } catch (err) { alert("Upload Failed"); }
+    };
+
+    const handleInvite = async () => {
+        try {
+            const { data } = await createInvite(selectedRoom.id);
+            const url = `${window.location.origin}/invite/${data.token}`;
+            navigator.clipboard.writeText(url);
+            setNotification("Invite Copied!");
+            setTimeout(() => setNotification(null), 3000);
+        } catch (e) { alert("Error making invite"); }
     };
 
     const handleLogout = () => {
         document.cookie = "session_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         setUser(null);
-        setMyRooms([]);
         setSelectedRoom(null);
-        setProfileOpen(false);
+        setMyRooms([]);
     };
 
-    const handleRoomSelect = async (room) => {
-        if (!user) {
-            setLoginModalOpen(true);
-            return;
-        }
-        const isAlreadyMember = myRooms.some((myRoom) => myRoom.id === room.id);
-        try {
-            if (!isAlreadyMember) {
-                await joinRoom(room.id);
-                const { data: newRoomData } = await getRoom(room.id);
-                setMyRooms(prev => [...prev, { ...newRoomData, unread_count: 0, active_users: 1 }]);
-                setSelectedRoom(newRoomData);
-            } else {
-                setSelectedRoom(room);
-                setMyRooms(prev => prev.map(r => r.id === room.id ? { ...r, unread_count: 0 } : r));
-            }
-        } catch (error) {
-            console.error("Failed to join or select room:", error);
-            setNotification("Could not join room.");
-            if (error.response?.status === 401) handleLogout();
-        }
-    };
-
-    const handleRoomCreated = (newRoom) => {
-        setMyRooms(prev => [...prev, { ...newRoom, unread_count: 0, active_users: 1 }]);
-        setSelectedRoom(newRoom);
-        if (newRoom.is_public) {
-            fetchAllPublicRooms();
-        }
-    };
-
-    const handleSendMessage = (messagePayload) => {
-        if (ws.current?.readyState === WebSocket.OPEN) {
-            ws.current.send(JSON.stringify(messagePayload));
-        } else {
-            setNotification("Connection lost. Please refresh.");
-        }
-    };
-
-    const handleFileUpload = async (file) => {
-        try {
-            const { data } = await uploadFile(file);
-            handleSendMessage({ content: '', file_url: data.file_url, type: 'file' });
-        } catch (error) {
-            console.error("File upload failed:", error);
-            setNotification("File upload failed.");
-        }
-    };
-
-    const handleInvite = async (roomId) => {
-        try {
-            const { data } = await createInvite(roomId);
-            const inviteLink = `${window.location.origin}/invite/${data.token}`;
-            navigator.clipboard.writeText(inviteLink);
-            setNotification("Invite link copied to clipboard!");
-        } catch (error) {
-            console.error("Failed to create invite:", error);
-            setNotification(error.response?.data?.detail || "Could not create invite.");
-        }
-    };
-
-    const handleDeleteRoom = async (roomId) => {
-        if (window.confirm("Are you sure you want to delete this room? This cannot be undone.")) {
-            if (selectedRoom?.id === roomId) setSelectedRoom(null);
-            try {
-                await deleteRoom(roomId);
-                setMyRooms(prev => prev.filter(r => r.id !== roomId));
-                setUserspaceRooms(prev => prev.filter(r => r.id !== roomId));
-                setNotification("Room deleted successfully.");
-            } catch (error) {
-                console.error("Failed to delete room:", error);
-                setNotification(error.response?.data?.detail || "Could not delete room.");
-            }
-        }
-    };
-
-    const handleLeaveRoom = async (roomId) => {
-        if (window.confirm("Are you sure you want to leave this room?")) {
-            if (selectedRoom?.id === roomId) setSelectedRoom(null);
-            try {
-                await leaveRoom(roomId);
-                setMyRooms(prev => prev.filter(r => r.id !== roomId));
-                setNotification("You have left the room.");
-            } catch (error) {
-                console.error("Failed to leave room:", error);
-                setNotification(error.response?.data?.detail || "Could not leave room.");
-                fetchMyRooms();
-            }
-        }
-    };
-
-    const totalUnreadCount = useMemo(() => {
-        return myRooms.reduce((acc, room) => acc + (room.unread_count || 0), 0);
-    }, [myRooms]);
-
-    const filteredMyRooms = useMemo(() => {
-        return myRooms.filter(room => room.name.toLowerCase().includes(myRoomsSearchQuery.toLowerCase()));
-    }, [myRooms, myRoomsSearchQuery]);
-
-    const filteredPublicRooms = useMemo(() => {
-        if (!publicSearchQuery) return [];
-        const allPublic = [...communityRooms, ...userspaceRooms];
-        return allPublic.filter(room => room.name.toLowerCase().includes(publicSearchQuery.toLowerCase()));
-    }, [communityRooms, userspaceRooms, publicSearchQuery]);
-
-    const myRoomIds = new Set(myRooms.map((r) => r.id));
-
-    const chatPanelComponent = (
-        <ChatPanel
-            room={selectedRoom} messages={messages} user={user}
-            onSendMessage={handleSendMessage} onInvite={handleInvite}
-            onDelete={handleDeleteRoom} onLeave={handleLeaveRoom}
-            onFileUpload={handleFileUpload} isExpanded={isChatExpanded}
-            onToggleExpand={() => setIsChatExpanded(!isChatExpanded)}
-            onToggleMembersList={() => setMembersListVisible(!isMembersListVisible)}
-        />
-    );
-
+    const myRoomIds = new Set(myRooms.map(r => r.id));
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-            <AnimatePresence>
-                {notification && <ToastNotification message={notification} onDismiss={() => setNotification(null)} />}
-                {isLoginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} onLogin={handleLogin} />}
-                {isCreateRoomModalOpen && <CreateRoomModal onClose={() => setCreateRoomModalOpen(false)} onRoomCreated={handleRoomCreated} />}
-                {isJoinModalOpen && <JoinByInviteModal onClose={() => setJoinModalOpen(false)} onJoin={handleRoomSelect} />}
-            </AnimatePresence>
+        <div className="flex h-screen bg-white text-slate-900 font-sans overflow-hidden">
 
-            <header className="sticky top-0 bg-white/80 backdrop-blur-lg z-40 border-b border-slate-200">
-                <div className="px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center py-3 gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className="w-9 h-9 bg-slate-900 text-white flex items-center justify-center rounded-md font-bold text-xl">OC</div>
-                        </div>
-                        <div className="flex-1 max-w-md">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                                <input
-                                    type="text"
-                                    placeholder={selectedRoom ? "Search your joined rooms..." : "Search all public rooms..."}
-                                    value={selectedRoom ? myRoomsSearchQuery : publicSearchQuery}
-                                    onChange={(e) => selectedRoom ? setMyRoomsSearchQuery(e.target.value) : setPublicSearchQuery(e.target.value)}
-                                    className="w-full bg-slate-100 border border-slate-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition-all"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {/* Emergency Nav Buttons for Accessibility */}
-                            <button onClick={() => setSelectedRoom(null)} className="hidden md:flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors">
-                                <Home size={16} /> Discovery
-                            </button>
-                            <button onClick={() => user ? setCreateRoomModalOpen(true) : setLoginModalOpen(true)} className="hidden md:flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-[#4f46e5] rounded-md hover:bg-[#4338ca] transition-colors">
-                                <Plus size={16} /> Create
-                            </button>
+            {/* LEFT SIDEBAR - ALWAYS VISIBLE */}
+            <aside className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col flex-shrink-0 z-20">
+                {/* App Header in Sidebar */}
+                <div className="h-14 flex items-center px-4 font-black text-lg tracking-tight text-slate-800 border-b border-slate-200 bg-white">
+                    <div className="w-7 h-7 bg-blue-600 text-white rounded flex items-center justify-center mr-2"><Hash size={18} /></div>
+                    OpenChat
+                </div>
 
-                            <button onClick={() => setMyRooms(prev => prev.map(r => ({ ...r, unread_count: 0 })))} className="relative w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors" title="Clear Notifications">
-                                <Bell size={20} className="text-slate-500" />
-                                {totalUnreadCount > 0 && (<span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">{totalUnreadCount}</span>)}
-                            </button>
-                            <div className="relative flex items-center gap-2" ref={profileRef}>
-                                {user ? (
-                                    <>
-                                        <button onClick={() => setProfileOpen(!isProfileOpen)} className="w-10 h-10 rounded-full bg-[#4f46e5] flex items-center justify-center font-bold text-lg text-white" title={`Logged in as ${user.name}.`}>
-                                            {user.name.charAt(0).toUpperCase()}
-                                        </button>
-                                        <AnimatePresence>
-                                            {isProfileOpen && (
-                                                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute top-12 right-0 w-56 bg-white border border-slate-200 rounded-lg shadow-2xl z-50 p-2">
-                                                    <div className="p-2 border-b border-slate-200 mb-2">
-                                                        <p className="font-semibold text-slate-800 truncate">{user.name}</p>
-                                                        <p className="text-sm text-slate-500">ID: {String(user.id).substring(0, 8)}...</p>
-                                                    </div>
-                                                    <button onClick={handleLogout} className="w-full flex items-center gap-3 p-2 text-left rounded-md text-red-500 hover:bg-red-500/10 transition-colors">
-                                                        <LogOut size={18} /> <span className="font-medium">Log Out</span>
-                                                    </button>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </>
-                                ) : (
-                                    <button onClick={() => setLoginModalOpen(true)} className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900 font-bold transition-colors whitespace-nowrap">Create account</button>
-                                )}
-                            </div>
-                        </div>
+                {/* Navigation Tabs */}
+                <div className="p-3">
+                    <div className="bg-slate-200 p-1 rounded-lg flex text-xs font-bold uppercase tracking-wide mb-3">
+                        <button onClick={() => setActiveTab('community')} className={`flex-1 py-1.5 rounded-md transition-all ${activeTab === 'community' ? 'bg-white shadow text-black' : 'text-slate-500 hover:text-slate-700'}`}>Community</button>
+                        <button onClick={() => setActiveTab('userspaces')} className={`flex-1 py-1.5 rounded-md transition-all ${activeTab === 'userspaces' ? 'bg-white shadow text-black' : 'text-slate-500 hover:text-slate-700'}`}>Userspaces</button>
+                    </div>
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2 text-slate-400" size={14} />
+                        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Filter rooms..." className="w-full pl-8 pr-3 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:border-blue-500" />
                     </div>
                 </div>
-            </header>
 
-            <main className="px-4 sm:px-6 lg:px-8 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    {/* --- Left Sidebar --- */}
-                    <aside className="lg:col-span-3 space-y-6">
-                        <div className="p-4 bg-white rounded-lg border border-slate-200">
-                            <button onClick={() => setSelectedRoom(null)} className="w-full p-3 mb-4 rounded-lg bg-slate-100 text-slate-800 font-semibold text-left transition-all hover:bg-slate-200 flex items-center justify-center gap-2"><Home size={20} /> Go to Discovery</button>
-                            <button onClick={() => (user ? setCreateRoomModalOpen(true) : setLoginModalOpen(true))} className="w-full p-3 mb-3 rounded-lg bg-slate-100 text-slate-800 font-semibold text-left transition-all hover:bg-slate-200 flex items-center justify-center gap-2"><Plus size={20} /> Create New Space</button>
-                            <button onClick={() => (user ? setJoinModalOpen(true) : setLoginModalOpen(true))} className="w-full p-3 rounded-lg bg-slate-100 text-slate-800 font-semibold text-left transition-all hover:bg-slate-200 flex items-center justify-center gap-2"><ArrowRight size={20} /> Join with Invite</button>
-                        </div>
+                {/* Public Lists */}
+                <div className="flex-1 overflow-y-auto px-2 space-y-1">
+                    <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {activeTab === 'community' ? 'Official Channels' : 'Community Rooms'}
+                    </div>
+                    {(activeTab === 'community' ? communityRooms : userspaceRooms)
+                        .filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .map(r => (
+                            <button key={r.id} onClick={() => handleRoomSelect(r)} className={`w-full text-left px-3 py-2 rounded-md flex items-center justify-between group transition-colors ${selectedRoom?.id === r.id ? 'bg-blue-100 text-blue-800' : 'text-slate-600 hover:bg-slate-200'}`}>
+                                <span className="truncate font-medium flex-1"># {r.name}</span>
+                                {myRoomIds.has(r.id) && <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>}
+                            </button>
+                        ))}
+                </div>
 
-                        <div className="p-4 bg-white rounded-lg border border-slate-200">
-                            <h3 className="font-bold text-slate-900 mb-3 text-lg">My Spaces</h3>
-                            <div className="space-y-1">
-                                {filteredMyRooms.length > 0 ? filteredMyRooms.map((room) => (
-                                    <button key={room.id} onClick={() => handleRoomSelect(room)} className={`w-full p-2.5 text-left rounded-md flex justify-between items-center transition-colors text-base ${selectedRoom?.id === room.id ? "bg-[#4f46e5]/10 text-[#4338ca]" : "text-slate-600 hover:bg-slate-100"}`}>
-                                        <span className="flex items-center gap-2 font-medium truncate"><Hash size={16} />{room.name}</span>
-                                        {room.unread_count > 0 && <span className="px-2 py-0.5 text-xs font-bold text-white bg-red-600 rounded-full flex-shrink-0">{room.unread_count}</span>}
-                                    </button>
-                                )) : <p className="text-slate-500 text-sm p-2">{myRoomsSearchQuery ? 'No rooms match your search.' : "You haven't joined any spaces yet."}</p>}
+                {/* My Rooms (Pinned Bottom) */}
+                <div className="border-t border-slate-200 bg-white flex-shrink-0 max-h-48 overflow-y-auto p-2">
+                    <div className="px-3 py-1 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        <span>Joined Spaces</span>
+                        <Plus size={14} className="cursor-pointer hover:text-blue-600" onClick={() => user ? setCreateRoomModalOpen(true) : setLoginModalOpen(true)} title="Create New" />
+                    </div>
+                    {myRooms.map(r => (
+                        <button key={r.id} onClick={() => handleRoomSelect(r)} className={`w-full text-left px-3 py-2 rounded-md flex items-center justify-between group transition-colors ${selectedRoom?.id === r.id ? 'bg-slate-800 text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
+                            <span className="truncate font-medium flex items-center gap-1.5"><Hash size={12} /> {r.name}</span>
+                            {r.unread_count > 0 && <span className="px-1.5 bg-red-500 text-white text-[10px] rounded-full">{r.unread_count}</span>}
+                        </button>
+                    ))}
+                </div>
+
+                {/* User Profile */}
+                <div className="p-3 border-t border-slate-200 bg-slate-50">
+                    {user ? (
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded bg-blue-600 text-white flex items-center justify-center font-bold shadow-sm">{user.name[0].toUpperCase()}</div>
+                            <div className="flex-1 min-w-0">
+                                <div className="font-bold text-sm truncate">{user.name}</div>
+                                <div className="text-xs text-green-600 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Online</div>
                             </div>
+                            <button onClick={handleLogout} className="text-slate-400 hover:text-red-500"><LogOut size={16} /></button>
                         </div>
-                    </aside>
+                    ) : (
+                        <button onClick={() => setLoginModalOpen(true)} className="w-full py-2 bg-blue-600 text-white rounded-md font-bold hover:bg-blue-700">Log In</button>
+                    )}
+                </div>
+            </aside>
 
-                    {/* --- Center Content --- */}
-                    <div className={`transition-all duration-300 ease-in-out ${selectedRoom ? (isMembersListVisible ? 'lg:col-span-6' : 'lg:col-span-9') : 'lg:col-span-9'}`}>
-                        {selectedRoom ? (
-                            <div className="h-[calc(100vh-12rem)] min-h-[500px]">
-                                {chatPanelComponent}
-                            </div>
-                        ) : (
+            {/* MAIN CHAT AREA */}
+            <main className="flex-1 flex flex-col min-w-0 bg-white relative">
+                {selectedRoom ? (
+                    <>
+                        {/* Chat Header */}
+                        <header className="h-14 flex items-center justify-between px-4 border-b border-slate-200 flex-shrink-0 z-10 bg-white">
                             <div>
-                                {publicSearchQuery ? (
-                                    <>
-                                        <h2 className="text-xl font-bold mb-4">Search Results for "{publicSearchQuery}"</h2>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                            {filteredPublicRooms.length > 0 ? filteredPublicRooms.map((room) => <RoomCard key={room.id} room={room} onSelect={handleRoomSelect} isJoined={myRoomIds.has(room.id)} />)
-                                                : <p className="text-slate-500 md:col-span-2 xl:col-span-3">No public rooms found.</p>}
-                                        </div>
-                                    </>
+                                <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                                    <Hash size={20} className="text-slate-400" />
+                                    {selectedRoom.name}
+                                    {!selectedRoom.is_public && <span className="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded uppercase font-bold border border-slate-200">Private</span>}
+                                </h3>
+                                <p className="text-xs text-slate-500">
+                                    {selectedRoom.active_users || 1} members active &bull; {selectedRoom.is_public ? 'Public Space' : 'Private Space'}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <button onClick={handleInvite} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors border border-blue-200">
+                                    <Link size={14} /> Invite
+                                </button>
+                                <div className="w-[1px] h-6 bg-slate-200 mx-1"></div>
+                                <button onClick={() => setMembersVisible(!isMembersVisible)} className={`p-2 rounded-md ${isMembersVisible ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`} title="Toggle Members">
+                                    <Users size={20} />
+                                </button>
+                                {user?.id === selectedRoom.owner_id ? (
+                                    <button onClick={async () => { if (confirm("Delete Room?")) { await deleteRoom(selectedRoom.id); setSelectedRoom(null); refreshPublicRooms(); } }} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={18} /></button>
                                 ) : (
-                                    <>
-                                        <div className="flex items-center gap-4 mb-6 border-b border-slate-200">
-                                            <button onClick={() => setActiveTab('community')} className={`py-3 px-1 font-semibold transition-colors ${activeTab === 'community' ? 'text-slate-800 border-b-2 border-slate-800' : 'text-slate-500 hover:text-slate-800'}`}>Community</button>
-                                            <button onClick={() => setActiveTab('userspaces')} className={`py-3 px-1 font-semibold transition-colors ${activeTab === 'userspaces' ? 'text-slate-800 border-b-2 border-slate-800' : 'text-slate-500 hover:text-slate-800'}`}>Userspaces</button>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                            {activeTab === 'community' && communityRooms.map((room) => <RoomCard key={room.id} room={room} onSelect={handleRoomSelect} isJoined={myRoomIds.has(room.id)} />)}
-                                            {activeTab === 'userspaces' && userspaceRooms.map((room) => <RoomCard key={room.id} room={room} onSelect={handleRoomSelect} isJoined={myRoomIds.has(room.id)} />)}
-                                        </div>
-                                    </>
+                                    <button onClick={async () => { if (confirm("Leave Room?")) { await leaveRoom(selectedRoom.id); setSelectedRoom(null); refreshPublicRooms(); setMyRooms(p => p.filter(x => x.id !== selectedRoom.id)); } }} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-md transition-colors"><LogOut size={18} /></button>
                                 )}
                             </div>
-                        )}
-                    </div>
+                        </header>
 
-                    {/* --- Right Sidebar --- */}
-                    <AnimatePresence>
-                        {selectedRoom && isMembersListVisible && (
-                            <motion.aside
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                transition={{ duration: 0.3, ease: "easeInOut" }}
-                                className="lg:col-span-3"
-                            >
-                                <div className="p-4 bg-white rounded-lg border border-slate-200 sticky top-24">
-                                    <h3 className="font-bold text-slate-900 mb-4 text-lg flex items-center gap-2"><Users size={20} /> Members ({members.length})</h3>
-                                    <ul className="space-y-3 max-h-[calc(100vh-16rem)] overflow-y-auto">
-                                        {members.length > 0 ? members.map((member) => (
-                                            <li key={member.id} className="flex items-center gap-3 text-slate-600">
-                                                <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold flex-shrink-0 relative">
-                                                    {member.name.charAt(0).toUpperCase()}
-                                                    <span className={`absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ${user?.id === member.id ? "bg-blue-500" : "bg-green-500"} ring-2 ring-white`}></span>
-                                                </div>
-                                                <span className="font-medium truncate">{member.name}</span>
-                                            </li>
-                                        )) : <p className="text-slate-500 text-sm">{selectedRoom ? 'No one is here yet.' : 'Select a room to see members.'}</p>}
-                                    </ul>
-                                </div>
-                            </motion.aside>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </main>
-
-            <AnimatePresence>
-                {isChatExpanded && selectedRoom && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 p-4 sm:p-8 md:p-12 lg:p-16">
-                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-full shadow-2xl">
-                            {chatPanelComponent}
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30">
+                            {messages.map((msg) => {
+                                const isMe = msg.author.id === user?.id;
+                                const isOwner = msg.author.id === selectedRoom.owner_id;
+                                return (
+                                    <div key={msg.id} className={`flex gap-3 group ${isMe ? 'flex-row-reverse' : ''}`}>
+                                        <div className={`w-9 h-9 rounded flex items-center justify-center text-sm font-bold flex-shrink-0 ${isMe ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                                            {msg.author.name[0].toUpperCase()}
+                                        </div>
+                                        <div className={`flex flex-col max-w-[70%] ${isMe ? 'items-end' : 'items-start'}`}>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-xs font-bold text-slate-700">{msg.author.name}</span>
+                                                {isOwner && <span title="Owner" className="text-[10px] bg-yellow-100 text-yellow-700 px-1 border border-yellow-200 rounded">ADMIN</span>}
+                                                <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                            <div className={`px-4 py-2 rounded-2xl text-sm shadow-sm leading-relaxed ${isMe ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'}`}>
+                                                {msg.content}
+                                                {msg.file_url && (
+                                                    <div className="mt-2 pt-2 border-t border-white/20">
+                                                        <a href={msg.file_url} target="_blank" className="flex items-center gap-1 hover:underline text-xs"><Paperclip size={12} /> {msg.file_url.split('/').pop().substring(0, 20)}...</a>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <div ref={messagesEndRef} />
                         </div>
+
+                        {/* Input Area */}
+                        <div className="p-4 bg-white border-t border-slate-200">
+                            <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-lg p-1.5 focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-400 transition-all shadow-sm">
+                                <button onClick={() => document.querySelector('#file-upload').click()} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Paperclip size={20} /></button>
+                                <input type="file" id="file-upload" className="hidden" onChange={handleFileUpload} />
+                                <input id="msg-input" onKeyDown={e => e.key === 'Enter' && handleSend()} className="flex-1 bg-transparent border-none focus:ring-0 text-sm peer" placeholder={`Message #${selectedRoom.name}...`} />
+                                <button onClick={handleSend} className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"><Send size={18} /></button>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-300">
+                        <MessageSquare size={64} className="mb-4 opacity-50" />
+                        <h3 className="text-xl font-bold text-slate-700">OpenChat Dashboard</h3>
+                        <p className="max-w-xs text-center text-slate-500 mt-2">Select a channel from the sidebar to start chatting.</p>
+                    </div>
+                )}
+
+                {/* Notification Toast */}
+                {notification && (
+                    <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: -20, opacity: 1 }} className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium z-50">
+                        {notification}
                     </motion.div>
                 )}
+            </main>
+
+            {/* 3. RIGHT SIDEBAR - MEMBER LIST */}
+            <AnimatePresence>
+                {selectedRoom && isMembersVisible && (
+                    <motion.aside
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: 260, opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        className="bg-slate-50 border-l border-slate-200 flex flex-col flex-shrink-0 overflow-hidden"
+                    >
+                        <div className="h-14 flex items-center px-4 font-bold text-slate-700 border-b border-slate-200 bg-white">
+                            Members <span className="ml-2 bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{members.length}</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-2">
+                            {members.map(m => (
+                                <div key={m.id} className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded-md transition-colors cursor-default">
+                                    <div className="w-8 h-8 rounded bg-gradient-to-tr from-slate-300 to-slate-400 text-white flex items-center justify-center text-xs font-bold relative">
+                                        {m.name[0].toUpperCase()}
+                                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-slate-50 rounded-full"></div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-slate-700 truncate flex items-center gap-1.5">
+                                            {m.name}
+                                            {m.id === selectedRoom.owner_id && (
+                                                <span title="Owner/Admin" className="text-yellow-500">👑</span>
+                                            )}
+                                        </div>
+                                        <div className="text-[10px] text-slate-400">Online</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </motion.aside>
+                )}
             </AnimatePresence>
+
+            {/* Modals via Portal/Absolute */}
+            <AnimatePresence>
+                {(isLoginModalOpen || isCreateRoomModalOpen || isJoinModalOpen) && (
+                    <div className="fixed inset-0 z-[100] pointer-events-none">
+                        {/* Modals are rendered here but handle their own overlays/interaction */}
+                        {/* Actually they are self-contained above */}
+                    </div>
+                )}
+            </AnimatePresence>
+            {isLoginModalOpen && <LoginModal onClose={() => setLoginModalOpen(false)} onLogin={u => { setUser(u); setLoginModalOpen(false) }} />}
+            {isCreateRoomModalOpen && <CreateRoomModal onClose={() => setCreateRoomModalOpen(false)} onRoomCreated={r => { setMyRooms(p => [...p, r]); setSelectedRoom(r); }} />}
+            {isJoinModalOpen && <JoinByInviteModal onClose={() => setJoinModalOpen(false)} onJoin={handleRoomSelect} />}
         </div>
     );
 }
