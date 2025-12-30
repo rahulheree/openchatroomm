@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, User, Hash, Send, Plus, Link, Trash2, LogOut, Paperclip, ArrowRight, Maximize, Minimize, MessageSquare, Users, Search, Home, Star, Cloud, Sparkles } from "lucide-react";
+import { Hash, Settings, Mic, Headphones, Plus, Compass, LogOut, Send, Paperclip, X, Users, Search, Bell, User as UserIcon } from "lucide-react";
 import axios from "axios";
 
 // --- API CLIENT ---
@@ -15,7 +15,7 @@ export const getMySession = () => apiClient.get("/session/me");
 export const getSessionToken = () => apiClient.get("/session/token");
 export const createRoom = (roomData) => apiClient.post("/rooms", roomData);
 export const getCommunityRooms = () => apiClient.get("/rooms/community");
-export const getUserspaceRooms = () => apiClient.get(`/rooms/userspaces?t=${Date.now()}`); // Cache Buster
+export const getUserspaceRooms = () => apiClient.get(`/rooms/userspaces?t=${Date.now()}`);
 export const getMyRooms = () => apiClient.get("/rooms/my");
 export const getRoom = (roomId) => apiClient.get(`/rooms/${roomId}`);
 export const deleteRoom = (roomId) => apiClient.delete(`/rooms/${roomId}`);
@@ -31,351 +31,418 @@ export const uploadFile = (file) => {
     return apiClient.post("/upload-file", formData, { headers: { "Content-Type": "multipart/form-data" } });
 };
 
-// --- DOODLE ASSETS ---
-const DoodleStar = ({ className }) => (
-    <motion.svg viewBox="0 0 24 24" fill="currentColor" className={className}
-        animate={{ rotate: 360, scale: [1, 1.2, 1] }} transition={{ duration: 4, repeat: Infinity }}
-    >
-        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-    </motion.svg>
-);
+// --- COMPONENTS ---
 
-const DoodleCloud = ({ className }) => (
-    <motion.svg viewBox="0 0 24 24" fill="currentColor" className={className}
-        animate={{ x: [0, 10, -10, 0] }} transition={{ duration: 8, repeat: Infinity }}
-    >
-        <path d="M17.5,19c-0.83,0-1.5-0.67-1.5-1.5c0-0.83,0.67-1.5,1.5-1.5c0.83,0,1.5,0.67,1.5,1.5C19,18.33,18.33,19,17.5,19z M19,8.5 c0-2.21-1.79-4-4-4c-1.85,0-3.41,1.25-3.86,2.96C10.79,7.19,10.42,7,10,7c-1.66,0-3,1.34-3,3c0,0.16,0.02,0.31,0.05,0.46 C5.69,10.97,5,12.39,5,14c0,2.76,2.24,5,5,5h9c2.76,0,5-2.24,5-5C24,11.24,21.76,9,19,8.5z" />
-    </motion.svg>
-);
+// 1. SERVER ICON (Left Sidebar)
+const ServerIcon = ({ name, active, onClick, isAdd, isExplore }) => {
+    return (
+        <div className="relative group flex items-center justify-center mb-2 w-[72px]">
+            {/* Pip */}
+            <div className={`absolute left-0 bg-white rounded-r-lg transition-all duration-200 ${active ? 'h-10' : 'h-2 group-hover:h-5'} w-1 ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}></div>
 
-// --- COMPONENT: ROOM CARD (BENTO STYLE) ---
-const RoomCard = ({ room, onSelect, isJoined, color }) => (
-    <motion.div
-        whileHover={{ scale: 1.02, rotate: 1 }}
-        whileTap={{ scale: 0.95 }}
-        className={`bg-[${color}] neo-card p-4 min-h-[140px] flex flex-col justify-between relative overflow-hidden`}
-        style={{ backgroundColor: color }}
-    >
-        <div className="absolute top-[-10px] right-[-10px] opacity-10 rotate-12"><Hash size={80} /></div>
-        <div>
-            <h3 className="font-bold text-xl truncate pr-2 border-b-2 border-black inline-block mb-1">{room.name}</h3>
-            <p className="text-sm font-semibold opacity-70 flex items-center gap-1"><User size={14} /> {room.active_users || 0} online</p>
+            <button
+                onClick={onClick}
+                className={`w-12 h-12 rounded-[24px] group-hover:rounded-[16px] transition-all duration-200 flex items-center justify-center overflow-hidden
+                ${active ? 'bg-[#5865F2] text-white rounded-[16px]' : 'bg-[#36393f] text-[#dcddde] group-hover:bg-[#5865F2] group-hover:text-white'}
+                ${isAdd ? 'text-green-500 bg-[#36393f] group-hover:bg-green-500 group-hover:text-white' : ''}
+                ${isExplore ? 'text-green-500 bg-[#36393f] group-hover:bg-green-500 group-hover:text-white' : ''}
+                `}
+            >
+                {isAdd ? <Plus size={24} /> : isExplore ? <Compass size={24} /> : <span className="font-bold">{name?.substring(0, 2).toUpperCase()}</span>}
+            </button>
         </div>
-        <button onClick={() => onSelect(room)} className={`w-full mt-3 neo-btn text-sm py-2 ${isJoined ? 'bg-white text-black' : 'bg-black text-white'}`}>
-            {isJoined ? "JUMP IN!" : "JOIN SPACE"}
-        </button>
-    </motion.div>
-);
+    );
+};
 
-// --- MODALS ---
-const LoginModal = ({ onLogin, onClose }) => {
+// 2. DISCORD MESSAGE
+const DiscordMessage = ({ msg, isSequence, user }) => {
+    const date = new Date(msg.created_at || Date.now());
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (isSequence) {
+        return (
+            <div className="group pl-[72px] pr-4 py-0.5 hover:bg-[#32353b] relative -mt-1">
+                <span className="hidden group-hover:block absolute left-4 text-[10px] text-[#72767d] top-2 w-[50px] text-right">{timeStr}</span>
+                <p className="text-[#dcddde] whitespace-pre-wrap">{msg.content}</p>
+                {msg.file_url && <a href={msg.file_url} target="_blank" className="text-[#00b0f4] text-sm block mt-1">Attachment 📎</a>}
+            </div>
+        );
+    }
+
+    return (
+        <div className="group flex pl-4 pr-4 py-1 mt-[17px] hover:bg-[#32353b]">
+            <div className="w-10 h-10 rounded-full bg-[#5865F2] flex-shrink-0 flex items-center justify-center text-white font-bold mr-4 mt-0.5 cursor-pointer hover:opacity-80">
+                {msg.author.name[0].toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                    <span className="font-medium text-white cursor-pointer hover:underline">{msg.author.name}</span>
+                    <span className="text-xs text-[#72767d]">{date.toLocaleDateString()} at {timeStr}</span>
+                </div>
+                <p className="text-[#dcddde] whitespace-pre-wrap">{msg.content}</p>
+                {msg.file_url && <a href={msg.file_url} target="_blank" className="text-[#00b0f4] text-sm block mt-1">Attachment 📎</a>}
+            </div>
+        </div>
+    );
+};
+
+// 3. CREATE SERVER MODAL
+const CreateServerModal = ({ onClose, onCreate }) => {
     const [name, setName] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0, rotate: -5 }} animate={{ scale: 1, rotate: 0 }} className="bg-[#fef3c7] neo-card p-8 w-full max-w-sm border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-                <div className="flex justify-center mb-4"><div className="w-16 h-16 bg-[#fca5a5] rounded-full border-3 border-black flex items-center justify-center"><User size={32} /></div></div>
-                <h2 className="text-3xl font-black text-center mb-2">WHO ARE YOU?</h2>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="Pick a cool name..." className="w-full neo-input p-3 mb-4 bg-white text-lg" />
-                <button onClick={() => { setIsLoading(true); startSession(name).then(r => onLogin(r.data)).catch(console.error).finally(() => setIsLoading(false)) }} className="w-full neo-btn bg-[#86efac] py-3 text-lg hover:bg-[#4ade80]" disabled={isLoading}>
-                    {isLoading ? "LOADING..." : "LET'S GO!"}
-                </button>
-            </motion.div>
-        </div>
-    );
-};
-
-const CreateRoomModal = ({ onClose, onRoomCreated }) => {
-    const [name, setName] = useState("");
-    const [isPublic, setIsPublic] = useState(true);
-    const [isLoading, setIsLoading] = useState(false);
-
-    const handleCreate = async () => {
-        if (!name.trim()) return alert("Please enter a room name!");
-        setIsLoading(true);
-        try {
-            const { data } = await createRoom({ name, is_public: isPublic });
-            onRoomCreated(data);
-            onClose();
-        } catch (err) {
-            console.error(err);
-            alert("Failed to create room: " + (err.response?.data?.detail || err.message));
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white neo-card p-8 w-full max-w-md relative">
-                <button onClick={onClose} className="absolute top-2 right-2 neo-btn p-1 bg-red-400">X</button>
-                <h2 className="text-2xl font-black mb-4 flex items-center gap-2"><Sparkles className="text-[#fde047]" fill="currentColor" /> CREATE SPACE</h2>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. The Chill Zone" className="w-full neo-input p-3 mb-4 bg-slate-50" />
-                <div className="flex items-center gap-3 mb-6 p-3 border-3 border-black rounded-xl bg-blue-50">
-                    <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="w-6 h-6 border-3 border-black rounded focus:ring-0 text-black" />
-                    <label className="font-bold text-lg">MAKE IT PUBLIC?</label>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+            <div className="bg-[#36393f] rounded-md w-[440px] overflow-hidden text-center">
+                <div className="p-6">
+                    <h2 className="text-2xl font-bold text-white mb-2">Customize Your Server</h2>
+                    <p className="text-[#b9bbbe] text-sm mb-6">Give your new server a personality with a name. You can always change it later.</p>
+                    <div className="mb-4">
+                        <label className="text-[#b9bbbe] text-xs font-bold uppercase block text-left mb-2">Server Name</label>
+                        <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-[#202225] text-[#dcddde] p-2.5 rounded border-none focus:outline-none" />
+                    </div>
                 </div>
-                <button onClick={handleCreate} disabled={isLoading} className="w-full neo-btn bg-[#fca5a5] py-3 text-xl hover:bg-[#f87171]">
-                    {isLoading ? "LAUNCHING..." : "LAUNCH 🚀"}
-                </button>
-            </motion.div>
-        </div>
-    );
-};
-
-// --- CHAT PANEL ---
-const ChatPanel = ({ room, messages, user, onSendMessage, onLeave, onToggleExpand, isExpanded }) => {
-    const [text, setText] = useState("");
-    const endRef = useRef(null);
-    useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
-
-    return (
-        <div className={`h-full flex flex-col bg-white ${isExpanded ? '' : 'neo-card'} overflow-hidden relative`}>
-            {/* Header */}
-            <div className="bg-[#c4b5fd] p-4 border-b-3 border-black flex justify-between items-center">
-                <h3 className="font-black text-xl flex items-center gap-2">
-                    <span className="w-8 h-8 bg-white border-2 border-black rounded-lg flex items-center justify-center"><Hash size={18} /></span>
-                    {room.name}
-                </h3>
-                <div className="flex gap-2">
-                    <button onClick={onToggleExpand} className="neo-btn p-2 bg-white hover:bg-slate-100"><Maximize size={18} /></button>
-                    <button onClick={() => onLeave(room.id)} className="neo-btn p-2 bg-red-400 text-white hover:bg-red-500"><LogOut size={18} /></button>
+                <div className="bg-[#2f3136] p-4 flex justify-between items-center">
+                    <button onClick={onClose} className="text-[#dcddde] text-sm font-medium hover:underline">Back</button>
+                    <button onClick={() => { setIsLoading(true); onCreate(name).finally(() => setIsLoading(false)) }} disabled={!name} className="bg-[#5865F2] text-white px-6 py-2.5 rounded-[3px] font-medium text-sm hover:bg-[#4752c4] disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isLoading ? "Creating..." : "Create"}
+                    </button>
                 </div>
             </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 pattern-dots">
-                {messages.map(msg => {
-                    const isMe = msg.author.id === user.id;
-                    return (
-                        <motion.div key={msg.id} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] p-3 rounded-2xl border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] ${isMe ? 'bg-[#86efac] rounded-tr-none' : 'bg-white rounded-tl-none'}`}>
-                                {!isMe && <p className="text-xs font-bold mb-1 opacity-50">{msg.author.name}</p>}
-                                <p className="font-medium whitespace-pre-wrap">{msg.content}</p>
-                                {msg.file_url && (
-                                    /\.(jpg|jpeg|png|gif)$/i.test(msg.file_url) ?
-                                        <img src={msg.file_url} className="mt-2 rounded-lg border-2 border-black w-full" /> :
-                                        <a href={msg.file_url} target="_blank" className="block mt-2 text-blue-600 underline font-bold">Attachment 📎</a>
-                                )}
-                            </div>
-                        </motion.div>
-                    )
-                })}
-                <div ref={endRef} />
-            </div>
-
-            {/* Input */}
-            <div className="p-3 bg-white border-t-3 border-black flex gap-2">
-                <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && (onSendMessage({ content: text, type: 'text' }), setText(''))} placeholder="Say something..." className="flex-1 neo-input p-2" />
-                <button onClick={() => { onSendMessage({ content: text, type: 'text' }); setText(''); }} className="neo-btn bg-[#fde047] p-3 hover:bg-[#facc15]"><Send size={20} /></button>
-            </div>
         </div>
     );
 };
 
-// --- MAIN APP ---
+// --- APP ---
 function App() {
     const [user, setUser] = useState(null);
-    const [activeTab, setActiveTab] = useState('community');
-    const [rooms, setRooms] = useState([]); // Unified list
     const [myRooms, setMyRooms] = useState([]);
-    const [selectedRoom, setSelectedRoom] = useState(null);
+    const [selectedRoomId, setSelectedRoomId] = useState("explore"); // 'explore' or room ID
     const [messages, setMessages] = useState([]);
-    const [isLoginOpen, setLoginOpen] = useState(false);
-    const [isCreateOpen, setCreateOpen] = useState(false);
-    const [notification, setNotification] = useState(null);
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [members, setMembers] = useState([]);
+    const [exploreRooms, setExploreRooms] = useState([]);
 
-    // Refs
+    // UI State
+    const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+    const [showUserList, setShowUserList] = useState(true);
+
     const ws = useRef(null);
-    const notifiedMessageIds = useRef(new Set());
+    const messagesEndRef = useRef(null);
 
-    // --- INITIAL DATA FETCH ---
-    const refreshData = async () => {
-        try {
-            // Fetch based on active tab
-            let res;
-            if (activeTab === 'userspaces') res = await getUserspaceRooms();
-            else res = await getCommunityRooms();
-            setRooms(res.data);
-
-            // Should also refresh myRooms if logged in
-            if (user) {
-                const myRes = await getMyRooms();
-                setMyRooms(myRes.data);
-            }
-        } catch (e) {
-            console.error("Fetch failed", e);
-        }
-    };
-
+    // Initial Load
     useEffect(() => {
-        refreshData();
-        const interval = setInterval(refreshData, 5000);
-
-        // Check session
         getMySession().then(r => setUser(r.data)).catch(() => { });
+        // Poll My Rooms
+        const loadMyRooms = () => getMyRooms().then(r => setMyRooms(r.data)).catch(console.error);
 
-        return () => clearInterval(interval);
-    }, [activeTab]);
+        if (user) loadMyRooms();
+        const int = setInterval(() => { if (user) loadMyRooms(); }, 5000);
+        return () => clearInterval(int);
+    }, [user]);
 
-    // --- WEBSOCKET LOGIC (TOKEN AUTH) ---
+    // Explore Logic
     useEffect(() => {
-        if (!selectedRoom || !user) {
+        if (selectedRoomId === 'explore') {
+            const loadExplore = async () => {
+                const [c, u] = await Promise.all([getCommunityRooms(), getUserspaceRooms()]);
+                setExploreRooms([...c.data, ...u.data]);
+            };
+            loadExplore();
+        }
+    }, [selectedRoomId]);
+
+    // Room Logic (Messages + Members + WS)
+    useEffect(() => {
+        if (selectedRoomId === 'explore' || !user) {
             ws.current?.close();
             return;
         }
 
-        const connectWS = async () => {
-            try {
-                // TOKEN AUTH FOR WS
-                const { data } = await getSessionToken();
-                const sessionToken = data.token;
+        const room = myRooms.find(r => r.id === selectedRoomId);
+        if (!room) return;
 
-                // URL Construction
+        // Fetch Data
+        Promise.all([getRoomMessages(room.id), getRoomMembers(room.id)]).then(([msgs, mems]) => {
+            setMessages(msgs.data.reverse());
+            setMembers(mems.data);
+        }).catch(console.error);
+
+        // Connect WS
+        const connect = async () => {
+            try {
+                const { data } = await getSessionToken();
+                const token = data.token;
                 const apiUrl = import.meta.env.VITE_API_URL || "";
-                let wsUrl;
-                if (apiUrl.startsWith("http")) {
-                    const wsProtocol = apiUrl.startsWith("https") ? "wss" : "ws";
+                let wsUrl = apiUrl.replace(/^http/, 'ws') + `/ws/${room.id}?token=${token}`;
+
+                // Fallback logic if needed (copied from prev implementation)
+                if (!apiUrl) wsUrl = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + `//${window.location.host}/api/v1/ws/${room.id}?token=${token}`;
+                else {
                     const hostPath = apiUrl.replace(/^https?:\/\//, "");
-                    wsUrl = `${wsProtocol}://${hostPath}/ws/${selectedRoom.id}?token=${sessionToken}`;
-                } else {
-                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    wsUrl = `${wsProtocol}//${window.location.host}/api/v1/ws/${selectedRoom.id}?token=${sessionToken}`;
+                    const proto = apiUrl.startsWith("https") ? "wss" : "ws";
+                    wsUrl = `${proto}://${hostPath}/ws/${room.id}?token=${token}`;
                 }
 
-                console.log("Connecting WS to:", wsUrl);
+                console.log("Connecting WS to", wsUrl);
                 const socket = new WebSocket(wsUrl);
                 ws.current = socket;
 
-                socket.onmessage = (event) => {
-                    const msg = JSON.parse(event.data);
-                    if (msg.room_id === selectedRoom.id) {
+                socket.onmessage = (e) => {
+                    const msg = JSON.parse(e.data);
+                    if (msg.room_id === room.id) {
                         setMessages(prev => {
                             if (prev.find(m => m.id === msg.id)) return prev;
                             return [...prev, msg];
                         });
                     }
-                    // Notification Logic
-                    if (!document.hasFocus() && msg.author.id !== user.id) {
-                        new Notification(`New msg in ${selectedRoom.name}`);
-                    }
                 };
-
-                // Fetch existing messages
-                const hist = await getRoomMessages(selectedRoom.id);
-                setMessages(hist.data.reverse());
-
-            } catch (e) { console.error("WS Error", e); }
+            } catch (e) { console.error("WS Fail", e); }
         };
-
-        connectWS();
-
+        connect();
         return () => ws.current?.close();
-    }, [selectedRoom, user]);
 
-    // --- HANDLERS ---
+    }, [selectedRoomId, user, myRooms]);
+
+    // Scroll to bottom
+    useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "auto" }), [messages]);
+
+
+    // Handlers
+    const handleLogin = (name) => startSession(name).then(r => setUser(r.data));
+    const handleCreate = async (name) => {
+        const { data } = await createRoom({ name, is_public: true });
+        setMyRooms(prev => [...prev, data]);
+        setSelectedRoomId(data.id);
+        setCreateModalOpen(false);
+    };
     const handleJoin = async (room) => {
-        if (!user) { setLoginOpen(true); return; }
-        try {
-            // Check if already joined
-            const isMember = myRooms.find(r => r.id === room.id);
-            if (!isMember) await joinRoom(room.id);
-            const fullRoom = (await getRoom(room.id)).data;
-            setSelectedRoom(fullRoom);
-            if (!isMember) setMyRooms(prev => [...prev, fullRoom]);
-        } catch (e) { console.error(e); }
+        if (!user) return alert("Please Login First!");
+        if (!myRooms.find(r => r.id === room.id)) await joinRoom(room.id);
+        setMyRooms(prev => prev.find(r => r.id === room.id) ? prev : [...prev, room]);
+        setSelectedRoomId(room.id);
+    };
+    const handleSend = (text) => {
+        if (!text.trim()) return;
+        ws.current?.send(JSON.stringify({ content: text, type: "text" }));
     };
 
-    const handleSend = (payload) => {
-        ws.current?.send(JSON.stringify(payload));
+
+    if (!user) {
+        // Simple Login Page for Discord
+        return (
+            <div className="w-full h-screen bg-[#5865F2] flex items-center justify-center overflow-hidden relative">
+                <div className="bg-[#36393f] p-8 rounded shadow-2xl w-full max-w-md z-10">
+                    <h2 className="text-2xl font-bold text-white text-center mb-2">Welcome Back!</h2>
+                    <p className="text-[#b9bbbe] text-center mb-6">We're so excited to see you again!</p>
+
+                    <label className="text-[#b9bbbe] text-xs font-bold uppercase block mb-2">Display Name</label>
+                    <input onKeyDown={e => { if (e.key === 'Enter') handleLogin(e.target.value) }} id="logininput" className="w-full bg-[#202225] text-[#dcddde] p-2.5 rounded border border-black/0 focus:border-[#5865F2] outline-none mb-6 transition" />
+
+                    <button onClick={() => handleLogin(document.getElementById('logininput').value)} className="w-full bg-[#5865F2] text-white p-2.5 rounded font-medium hover:bg-[#4752c4] transition">Login</button>
+                    <p className="text-[#72767d] text-xs mt-4">Need an account? Too bad, just type a name.</p>
+                </div>
+            </div>
+        )
     }
 
-    const handleLeave = async (rid) => {
-        if (confirm("Leave this cool room?")) {
-            await leaveRoom(rid);
-            setMyRooms(prev => prev.filter(r => r.id !== rid));
-            setSelectedRoom(null);
-        }
-    }
-
-    // --- RENDER ---
-    const colors = ["#bbf7d0", "#fecaca", "#bfdbfe", "#fde047", "#e9d5ff", "#fed7aa"];
+    const activeRoom = myRooms.find(r => r.id === selectedRoomId);
 
     return (
-        <div className="min-h-screen relative overflow-hidden font-fredoka text-slate-900 pb-24">
-            {/* Background Doodles */}
-            <DoodleCloud className="absolute top-10 left-10 w-32 text-white opacity-60" />
-            <DoodleCloud className="absolute top-40 right-20 w-48 text-white opacity-40 delay-1000" />
-            <DoodleStar className="absolute bottom-20 left-1/4 w-12 text-[#fde047]" />
+        <div className="flex h-screen w-screen bg-[#202225] select-none">
+            {/* 1. SERVER LIST (Far Left) */}
+            <div className="w-[72px] bg-[#202225] flex flex-col items-center py-3 overflow-y-auto hidden-scrollbar z-20">
+                <ServerIcon name="Explore" isExplore active={selectedRoomId === 'explore'} onClick={() => setSelectedRoomId('explore')} />
+                <div className="w-8 h-[2px] bg-[#36393f] rounded-lg mb-2"></div>
 
-            {/* Nav Bar (Visor) */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white neo-card px-6 py-3 flex items-center gap-6 z-40 rounded-full shadow-[0px_10px_20px_rgba(0,0,0,0.2)]">
-                <button onClick={() => { setSelectedRoom(null); setActiveTab('community'); }} className={`p-3 rounded-full border-2 border-black transition ${activeTab === 'community' && !selectedRoom ? 'bg-[#fde047] -translate-y-2' : 'bg-slate-100 hover:bg-slate-200'}`}><Home size={24} /></button>
-                <button onClick={() => { setSelectedRoom(null); setActiveTab('userspaces'); }} className={`p-3 rounded-full border-2 border-black transition ${activeTab === 'userspaces' && !selectedRoom ? 'bg-[#86efac] -translate-y-2' : 'bg-slate-100 hover:bg-slate-200'}`}><Search size={24} /></button>
-                <div className="w-0.5 h-8 bg-black/20"></div>
-                <button onClick={() => user ? setCreateOpen(true) : setLoginOpen(true)} className="neo-btn bg-[#fca5a5] text-white p-3 rounded-full hover:scale-110"><Plus size={28} strokeWidth={3} /></button>
-                <div className="w-0.5 h-8 bg-black/20"></div>
-                {user ?
-                    <button onClick={() => setUser(null)} className="w-12 h-12 rounded-full border-2 border-black bg-[#bfdbfe] font-bold text-xl flex items-center justify-center hover:bg-red-200 transition">{user.name[0]}</button>
-                    :
-                    <button onClick={() => setLoginOpen(true)} className="neo-btn px-4 py-2 bg-black text-white text-sm">LOGIN</button>
-                }
+                {myRooms.map(room => (
+                    <ServerIcon key={room.id} name={room.name} active={selectedRoomId === room.id} onClick={() => setSelectedRoomId(room.id)} />
+                ))}
+
+                <ServerIcon isAdd onClick={() => setCreateModalOpen(true)} />
             </div>
 
-            {/* Modals */}
-            <AnimatePresence>
-                {isLoginOpen && <LoginModal onClose={() => setLoginOpen(false)} onLogin={(u) => { setUser(u); setLoginOpen(false) }} />}
-                {isCreateOpen && <CreateRoomModal onClose={() => setCreateOpen(false)} onRoomCreated={(r) => { handleJoin(r); refreshData(); }} />}
-            </AnimatePresence>
-
-            {/* Main Layout */}
-            <div className={`transition-all duration-500 p-4 lg:p-8 grid gap-8 ${selectedRoom ? 'grid-cols-1 lg:grid-cols-[1fr_2fr]' : 'grid-cols-1 lg:grid-cols-[1fr_3fr]'}`}>
-
-                {/* Left: My Spaces (Sidebar) */}
-                <div className={`space-y-4 ${selectedRoom && isExpanded ? 'hidden lg:block' : ''}`}>
-                    <div className="bg-[#e9d5ff] neo-card p-6 min-h-[300px]">
-                        <h2 className="text-2xl font-black mb-4 border-b-3 border-black pb-2">MY SPACES</h2>
-                        <div className="space-y-3">
-                            {user && myRooms.length > 0 ? myRooms.map(room => (
-                                <motion.div key={room.id} whileHover={{ x: 5 }} onClick={() => setSelectedRoom(room)}
-                                    className={`cursor-pointer p-3 border-2 border-black rounded-xl font-bold flex justify-between items-center shadow-[3px_3px_0px_0px_#000] transition ${selectedRoom?.id === room.id ? 'bg-[#fde047]' : 'bg-white'}`}>
-                                    <span className="truncate"># {room.name}</span>
-                                    {room.unread_count > 0 && <span className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs border-2 border-black">{room.unread_count}</span>}
-                                </motion.div>
-                            )) : <p className="opacity-50 font-medium italic">Join some spaces to see them here!</p>}
-                        </div>
-                    </div>
+            {/* 2. CHANNELS SIDEBAR (Left) */}
+            <div className="w-60 bg-[#2f3136] flex flex-col min-w-[240px]">
+                {/* Header */}
+                <div className="h-12 border-b border-[#202225] flex items-center px-4 font-bold text-white shadow-sm cursor-pointer hover:bg-[#34373c] transition">
+                    <span className="truncate">{activeRoom ? activeRoom.name : 'Discovery'}</span>
+                    {!activeRoom && <Compass size={16} className="ml-auto" />}
                 </div>
 
-                {/* Right: Content Area (Discovery or Chat) */}
-                <div className="relative min-h-[80vh]">
-                    {selectedRoom ? (
-                        <div className={`h-[80vh] ${isExpanded ? 'fixed inset-0 z-50 p-4 bg-black/80 flex items-center justify-center' : 'relative'}`}>
-                            <div className={`w-full h-full ${isExpanded ? 'max-w-5xl neo-card' : ''}`}>
-                                <ChatPanel room={selectedRoom} messages={messages} user={user} onSendMessage={handleSend} onLeave={handleLeave} onToggleExpand={() => setIsExpanded(!isExpanded)} isExpanded={isExpanded} />
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-2">
+                    {activeRoom ? (
+                        <>
+                            {/* Text Channels */}
+                            <div className="flex items-center justify-between px-2 mt-4 mb-1 text-[#8e9297] hover:text-[#dcddde] cursor-pointer">
+                                <span className="text-xs font-bold uppercase tracking-wide">Text Channels</span>
+                                <Plus size={14} className="cursor-pointer" />
                             </div>
-                        </div>
-                    ) : (
-                        /* Discovery Grid (Bento) */
-                        <div className="space-y-6">
-                            <div className="flex items-end gap-4 mb-4">
-                                <h1 className="text-5xl font-black text-black drop-shadow-sm tracking-tighter">
-                                    {activeTab === 'community' ? 'COMMUNITY' : 'USERSPACES'}
-                                </h1>
-                                <span className="bg-black text-white px-3 py-1 rounded-full font-bold text-sm mb-2 rotate-3">LIVE</span>
+                            <div className="bg-[#393c43] text-white px-2 py-1.5 rounded flex items-center gap-1.5 cursor-pointer mb-0.5">
+                                <Hash size={18} className="text-[#72767d]" />
+                                <span className="font-medium">general</span>
+                            </div>
+                            <div className="px-2 py-1.5 rounded flex items-center gap-1.5 cursor-pointer text-[#72767d] hover:bg-[#34373c] hover:text-[#dcddde]">
+                                <Hash size={18} />
+                                <span className="font-medium">off-topic</span>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
-                                {rooms.map((room, i) => (
-                                    <RoomCard key={room.id} room={room} onSelect={handleJoin} isJoined={myRooms.find(r => r.id === room.id)} color={colors[i % colors.length]} />
-                                ))}
-                                {rooms.length === 0 && <div className="col-span-full py-20 text-center opacity-50 font-bold text-xl">No rooms found. Be the first to create one!</div>}
+                            {/* Voice Channels */}
+                            <div className="flex items-center justify-between px-2 mt-4 mb-1 text-[#8e9297] hover:text-[#dcddde] cursor-pointer">
+                                <span className="text-xs font-bold uppercase tracking-wide">Voice Channels</span>
+                                <Plus size={14} className="cursor-pointer" />
                             </div>
+                            <div className="px-2 py-1.5 rounded flex items-center gap-1.5 cursor-pointer text-[#72767d] hover:bg-[#34373c] hover:text-[#dcddde]">
+                                <div className="text-[#72767d]"><Mic size={18} /></div>
+                                <span className="font-medium">General</span>
+                            </div>
+                        </>
+                    ) : (
+                        // Explore Sidebar content
+                        <div className="px-2">
+                            <div className="text-white font-bold mb-2 mt-2 px-2">Categories</div>
+                            <div className="bg-[#393c43] text-white px-2 py-1.5 rounded mb-1 cursor-pointer">Home</div>
+                            <div className="text-[#72767d] px-2 py-1.5 hover:bg-[#34373c] hover:text-[#dcddde] rounded cursor-pointer">Music</div>
+                            <div className="text-[#72767d] px-2 py-1.5 hover:bg-[#34373c] hover:text-[#dcddde] rounded cursor-pointer">Gaming</div>
+                            <div className="text-[#72767d] px-2 py-1.5 hover:bg-[#34373c] hover:text-[#dcddde] rounded cursor-pointer">Education</div>
                         </div>
                     )}
                 </div>
+
+                {/* User Bar */}
+                <div className="bg-[#292b2f] h-[52px] flex items-center px-2 flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[#5865F2] flex items-center justify-center text-white font-bold mr-2">
+                        {user.name[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-white text-sm font-bold truncate">{user.name}</div>
+                        <div className="text-[#b9bbbe] text-xs truncate">#{user.id.toString().substring(0, 4)}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button className="p-1.5 hover:bg-[#36393f] rounded text-[#b9bbbe]"><Mic size={16} /></button>
+                        <button className="p-1.5 hover:bg-[#36393f] rounded text-[#b9bbbe]"><Headphones size={16} /></button>
+                        <button onClick={() => setUser(null)} className="p-1.5 hover:bg-[#36393f] rounded text-[#b9bbbe]"><Settings size={16} /></button>
+                    </div>
+                </div>
             </div>
+
+            {/* 3. CENTER + RIGHT */}
+            {selectedRoomId === 'explore' ? (
+                <div className="flex-1 bg-[#36393f] flex flex-col p-8 overflow-y-auto">
+                    <div className="relative mb-8">
+                        <div className="h-48 rounded bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center">
+                            <h1 className="text-4xl font-extrabold text-white text-center">Find your community on OpenChat</h1>
+                        </div>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg">
+                            <input placeholder="Explore communities..." className="w-full p-3 rounded shadow-lg border-none outline-none text-black" />
+                        </div>
+                    </div>
+
+                    <h2 className="text-white font-bold mb-4">Featured Communities</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {exploreRooms.map(room => (
+                            <div key={room.id} onClick={() => handleJoin(room)} className="bg-[#2f3136] rounded cursor-pointer hover:bg-[#202225] transition shadow group overflow-hidden">
+                                <div className="h-24 bg-[#5865F2]"></div>
+                                <div className="p-4 relative">
+                                    <div className="w-10 h-10 bg-[#292b2f] rounded-full absolute -top-5 left-4 border-[4px] border-[#2f3136] flex items-center justify-center text-white font-bold text-sm">
+                                        {room.name.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <h3 className="text-white font-bold mt-2 truncate"> {room.name}</h3>
+                                    <p className="text-[#b9bbbe] text-xs mt-1">{room.active_users || 0} Online • {room.active_users || 0} Members</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <>
+                    {/* Chat Area */}
+                    <div className="flex-1 bg-[#36393f] flex flex-col min-w-0">
+                        {/* Header */}
+                        <div className="h-12 border-b border-[#202225] flex items-center px-4 shadow-sm flex-shrink-0">
+                            <Hash size={24} className="text-[#72767d] mr-2" />
+                            <span className="text-white font-bold mr-4">general</span>
+                            <span className="text-[#72767d] text-sm border-l border-[#4f545c] pl-4">The main lounge</span>
+
+                            <div className="ml-auto flex items-center gap-4 text-[#b9bbbe]">
+                                <Bell size={20} className="hover:text-[#dcddde] cursor-pointer" />
+                                <Users size={20} className={`hover:text-[#dcddde] cursor-pointer ${showUserList ? 'text-[#dcddde]' : ''}`} onClick={() => setShowUserList(!showUserList)} />
+                                <div className="relative">
+                                    <input placeholder="Search" className="bg-[#202225] text-sm h-6 px-2 rounded w-36 transition-all focus:w-60 text-[#dcddde]" />
+                                    <Search size={14} className="absolute right-2 top-1 cursor-pointer" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto px-0 pt-4 pb-0 flex flex-col gap-0.5 custom-scrollbar">
+                            {messages.length === 0 ? (
+                                <div className="flex-1 flex flex-col justify-end p-4 mb-4">
+                                    <div className="w-16 h-16 bg-[#4f545c] rounded-full flex items-center justify-center mb-4"><Hash size={40} className="text-white" /></div>
+                                    <h1 className="text-3xl font-bold text-white mb-2">Welcome to #general!</h1>
+                                    <p className="text-[#b9bbbe]">This is the start of the #general channel.</p>
+                                </div>
+                            ) : (
+                                messages.map((msg, i) => {
+                                    const prevMsg = messages[i - 1];
+                                    const isSeq = prevMsg && prevMsg.author.id === msg.author.id && (new Date(msg.created_at) - new Date(prevMsg.created_at) < 60000);
+                                    return <DiscordMessage key={msg.id} msg={msg} isSequence={isSeq} user={user} />
+                                })
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Input */}
+                        <div className="px-4 pb-6 pt-0 bg-[#36393f]">
+                            <div className="bg-[#40444b] rounded-lg items-center flex px-4 py-2.5">
+                                <button className="bg-[#b9bbbe] rounded-full p-0.5 text-[#40444b] mr-4 hover:text-[#dcddde] transition"><Plus size={16} strokeWidth={3} /></button>
+                                <input
+                                    placeholder={`Message #${activeRoom?.name || 'general'}`}
+                                    className="bg-transparent flex-1 text-[#dcddde] outline-none font-medium placeholder-[#72767d]"
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && e.target.value.trim()) {
+                                            handleSend(e.target.value);
+                                            e.target.value = '';
+                                        }
+                                    }}
+                                />
+                                <div className="flex items-center gap-3 text-[#b9bbbe]">
+                                    <div className="cursor-pointer hover:text-[#dcddde] hidden sm:block">🎁</div>
+                                    <div className="cursor-pointer hover:text-[#dcddde] hidden sm:block">GIF</div>
+                                    <div className="cursor-pointer hover:text-[#dcddde]"><Paperclip size={20} /></div>
+                                    <div className="cursor-pointer hover:text-[#dcddde]"><Send size={20} /></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Member List */}
+                    {showUserList && (
+                        <div className="w-60 bg-[#2f3136] flex-shrink-0 hidden lg:flex flex-col overflow-y-auto p-4">
+                            <h3 className="text-[#96989d] text-xs font-bold uppercase mb-4">Online — {members.length}</h3>
+                            {members.map(member => (
+                                <div key={member.id} className="flex items-center gap-3 mb-2 opacity-90 hover:bg-[#36393f] p-1.5 rounded cursor-pointer hover:opacity-100">
+                                    <div className="relative">
+                                        <div className="w-8 h-8 rounded-full bg-[#5865F2] flex items-center justify-center text-white text-xs font-bold">
+                                            {member.name[0].toUpperCase()}
+                                        </div>
+                                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-[#2f3136] rounded-full flex items-center justify-center">
+                                            <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-white font-medium text-sm">{member.name}</div>
+                                        <div className="text-[#b9bbbe] text-xs">Playing VS Code</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+
+            <AnimatePresence>
+                {isCreateModalOpen && <CreateServerModal onClose={() => setCreateModalOpen(false)} onCreate={handleCreate} />}
+            </AnimatePresence>
         </div>
     );
 }
