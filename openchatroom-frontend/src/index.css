@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body {
+  height: 100%;
+  overflow-y: auto;
+  /* Force scroll */
+}
+
 /* Custom Scrollbar for Webkit Browsers */
 ::-webkit-scrollbar {
   width: 8px;

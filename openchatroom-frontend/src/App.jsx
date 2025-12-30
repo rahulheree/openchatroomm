@@ -678,6 +678,14 @@ function App() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
+                            {/* Emergency Nav Buttons for Accessibility */}
+                            <button onClick={() => setSelectedRoom(null)} className="hidden md:flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors">
+                                <Home size={16} /> Discovery
+                            </button>
+                            <button onClick={() => user ? setCreateRoomModalOpen(true) : setLoginModalOpen(true)} className="hidden md:flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-[#4f46e5] rounded-md hover:bg-[#4338ca] transition-colors">
+                                <Plus size={16} /> Create
+                            </button>
+
                             <button onClick={() => setMyRooms(prev => prev.map(r => ({ ...r, unread_count: 0 })))} className="relative w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors" title="Clear Notifications">
                                 <Bell size={20} className="text-slate-500" />
                                 {totalUnreadCount > 0 && (<span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">{totalUnreadCount}</span>)}
