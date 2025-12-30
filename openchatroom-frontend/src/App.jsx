@@ -336,8 +336,7 @@ function App() {
             }
         } catch (err) {
             console.error(err);
-            setNotification(null);
-            alert("Upload Failed");
+            setNotification("Upload Failed");
         }
         e.target.value = '';
     };
@@ -353,7 +352,7 @@ function App() {
             } catch (clipErr) {
                 prompt("Copy Link:", url);
             }
-        } catch (e) { alert("Only members can create invites."); }
+        } catch (e) { setNotification("Only members can create invites."); }
     };
 
     const handleLogout = () => {
