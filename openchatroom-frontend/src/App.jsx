@@ -1,7 +1,7 @@
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, User, Hash, Send, Plus, Link, Trash2, LogOut, Paperclip, ArrowRight, Maximize, Minimize, MessageSquare, Users, Settings, Search, Home } from "lucide-react";
+import { Bell, User, Hash, Send, Plus, Link, Trash2, LogOut, Paperclip, ArrowRight, Maximize, Minimize, MessageSquare, Users, Settings, Search, Home, Loader } from "lucide-react";
 import axios from "axios";
 
 // --- API CLIENT ---
@@ -10,6 +10,15 @@ const apiClient = axios.create({
     withCredentials: true,
 });
 
+apiClient.interceptors.response.use(
+    response => response,
+    error => {
+        console.error("API Error:", error);
+        return Promise.reject(error);
+    }
+);
+
+// --- API HELPERS ---
 export const startSession = (name) => apiClient.post("/session/start", { name });
 export const getMySession = () => apiClient.get("/session/me");
 export const getSessionToken = () => apiClient.get("/session/token");
@@ -53,7 +62,7 @@ const LoginModal = ({ onLogin, onClose }) => {
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="w-full max-w-sm p-6 bg-white rounded-xl shadow-2xl" onClick={e => e.stopPropagation()}>
                 <h2 className="text-xl font-bold mb-4 text-center">Join OpenChat</h2>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="Display Name" className="w-full p-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" autoFocus />
-                <button onClick={() => { setIsLoading(true); startSession(name).then(r => onLogin(r.data)) }} disabled={isLoading} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50">
+                <button onClick={() => { setIsLoading(true); startSession(name).then(r => onLogin(r.data)).catch(e => alert(e.response?.data?.detail || "Login failed")) }} disabled={isLoading} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50">
                     {isLoading ? "Joining..." : "Enter"}
                 </button>
             </motion.div>
@@ -73,7 +82,7 @@ const CreateRoomModal = ({ onClose, onRoomCreated }) => {
             const { data } = await createRoom({ name, is_public: isPublic });
             onRoomCreated(data);
             onClose();
-        } catch (e) { alert("Error: " + e.message); setIsLoading(false); }
+        } catch (e) { alert("Error: " + (e.response?.data?.detail || e.message)); setIsLoading(false); }
     };
 
     return (
@@ -85,7 +94,7 @@ const CreateRoomModal = ({ onClose, onRoomCreated }) => {
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border mb-6">
                     <div>
                         <div className="font-semibold text-sm">Public Space</div>
-                        <div className="text-xs text-slate-500">Visible in Userspaces/Community</div>
+                        <div className="text-xs text-slate-500">Visible in {isPublic ? 'Userspaces' : 'My Spaces'}</div>
                     </div>
                     <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="accent-blue-600 w-5 h-5" />
                 </div>
@@ -104,19 +113,21 @@ const CreateRoomModal = ({ onClose, onRoomCreated }) => {
 const JoinByInviteModal = ({ onClose, onJoin }) => {
     const [link, setLink] = useState("");
     const handleJoin = async () => {
-        const token = link.match(/\/invite\/([a-zA-Z0-9-]+)/)?.[1];
+        const token = link.match(/\/invite\/([a-zA-Z0-9-]+)/)?.[1] || link.trim(); // Handle full URL or just token
         if (!token) return alert("Invalid Link");
         try {
-            const { data } = await getRoomByInvite(token);
-            await onJoin(data);
+            // First fix: Check if token is full url or uuid
+            const cleanToken = token.replace(/\/$/, "");
+            const { data } = await getRoomByInvite(cleanToken);
+            await onJoin(data); // Will handle joining inside handleRoomSelect
             onClose();
-        } catch (e) { alert("Invalid or Expired Invite"); }
+        } catch (e) { alert(e.response?.data?.detail || "Invalid or Expired Invite"); }
     };
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50" onClick={onClose}>
             <motion.div className="w-full max-w-md p-6 bg-white rounded-xl shadow-2xl" onClick={e => e.stopPropagation()}>
                 <h2 className="text-xl font-bold mb-4">Join via Link</h2>
-                <input value={link} onChange={e => setLink(e.target.value)} placeholder="Paste https://.../invite/..." className="w-full p-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" />
+                <input value={link} onChange={e => setLink(e.target.value)} placeholder="Paste invite link..." className="w-full p-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" />
                 <button onClick={handleJoin} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700">Join Space</button>
             </motion.div>
         </motion.div>
@@ -144,6 +155,7 @@ function App() {
     const [isMembersVisible, setMembersVisible] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
     const [messageInput, setMessageInput] = useState("");
+    const [isConnecting, setIsConnecting] = useState(false);
 
     const ws = useRef(null);
     const messagesEndRef = useRef(null);
@@ -151,9 +163,9 @@ function App() {
 
     // Initial Load
     useEffect(() => {
-        getMySession().then(r => setUser(r.data)).catch(() => { });
+        getMySession().then(r => setUser(r.data)).catch(() => console.log("Not logged in"));
         refreshPublicRooms();
-        const i = setInterval(refreshPublicRooms, 10000);
+        const i = setInterval(refreshPublicRooms, 5000); // 5s poll for faster updates
         return () => clearInterval(i);
     }, []);
 
@@ -162,45 +174,80 @@ function App() {
         if (user) {
             getMyRooms().then(r => setMyRooms(r.data)).catch(() => { });
         }
-    }, [user, notification]);
+    }, [user, notification, selectedRoom]); // Refresh my rooms when selectedRoom changes (to update unread/order)
 
     const refreshPublicRooms = async () => {
         try {
             const [c, u] = await Promise.all([getCommunityRooms(), getUserspaceRooms()]);
             setCommunityRooms(c.data);
             setUserspaceRooms(u.data);
-        } catch (e) { }
+        } catch (e) { console.error("Poll Error", e); }
     };
 
-    // WebSocket
+    // WebSocket Connection Logic
     useEffect(() => {
         if (!selectedRoom || !user) return;
 
+        // Cleanup previous connection
+        if (ws.current) {
+            ws.current.close();
+        }
+
         const connect = async () => {
+            setIsConnecting(true);
             try {
-                // Fetch Messages First
-                const [msgs, mems] = await Promise.all([getRoomMessages(selectedRoom.id), getRoomMembers(selectedRoom.id)]);
+                // Fetch Data First
+                const [msgs, mems] = await Promise.all([
+                    getRoomMessages(selectedRoom.id).catch(e => { throw new Error("Failed to fetch messages") }),
+                    getRoomMembers(selectedRoom.id).catch(e => { throw new Error("Failed to fetch members") })
+                ]);
                 setMessages(msgs.data.reverse());
                 setMembers(mems.data);
 
-                // Connect WS with Token
+                // Get Token
                 const { data } = await getSessionToken();
                 const sessionToken = data.token;
+
+                // Construct URL
                 const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
                 const host = window.location.host;
                 const wsUrl = `${proto}://${host}/api/v1/ws/${selectedRoom.id}?token=${sessionToken}`;
 
+                console.log("Connecting WS to:", wsUrl);
                 const socket = new WebSocket(wsUrl);
                 ws.current = socket;
+
+                socket.onopen = () => {
+                    console.log("WS Connected");
+                    setIsConnecting(false);
+                };
 
                 socket.onmessage = (e) => {
                     const msg = JSON.parse(e.data);
                     if (msg.room_id === selectedRoom.id) {
-                        setMessages(p => p.find(m => m.id === msg.id) ? p : [...p, msg]);
+                        setMessages(p => {
+                            if (p.find(m => m.id === msg.id)) return p;
+                            return [...p, msg];
+                        });
                     }
                     if (!document.hasFocus() && msg.author.id !== user.id) showBrowserNotification(selectedRoom, msg);
                 };
-            } catch (e) { console.error(e); }
+
+                socket.onerror = (e) => {
+                    console.error("WS Error:", e);
+                    setNotification("Connection Error");
+                };
+
+                socket.onclose = () => {
+                    console.log("WS Closed");
+                    // Optional: Reconnect logic could go here
+                };
+
+            } catch (e) {
+                console.error(e);
+                alert(e.message || "Connection Failed");
+                setIsConnecting(false);
+            }
         };
         connect();
         return () => ws.current?.close();
@@ -213,14 +260,25 @@ function App() {
     const handleRoomSelect = async (room) => {
         if (!user) return setLoginModalOpen(true);
         try {
-            if (!myRooms.find(r => r.id === room.id)) {
+            // Check if already member
+            let isMember = myRooms.find(r => r.id === room.id);
+            if (!isMember) {
+                // Try join
                 await joinRoom(room.id);
                 setMyRooms(p => [...p, room]);
             }
             setSelectedRoom(room);
             setMembersVisible(false);
-            setMyRooms(p => p.map(r => r.id === room.id ? { ...r, unread_count: 0 } : r));
-        } catch (e) { alert("Could not join: " + JSON.stringify(e)); }
+            setMyRooms(p => p.map(r => r.id === room.id ? { ...r, unread_count: 0 } : r)); // Clear unread
+        } catch (e) {
+            const errorMsg = e.response?.data?.detail || e.message;
+            if (errorMsg.includes("already a member")) {
+                // Fallback if local state was out of sync
+                setSelectedRoom(room);
+            } else {
+                alert("Could not join: " + errorMsg);
+            }
+        }
     };
 
     const handleSend = () => {
@@ -229,18 +287,31 @@ function App() {
             ws.current.send(JSON.stringify({ content: messageInput, type: 'text' }));
             setMessageInput("");
         } else {
-            alert("Connecting... please wait.");
+            alert("Connection lost. Please wait or refresh.");
         }
     };
 
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+
+        const tempId = Date.now();
+        // Optimistic UI for upload? Maybe later. For now just wait.
+
         try {
-            // Creating a temporary message or loading state could be nice here
+            setNotification("Uploading...");
             const { data } = await uploadFile(file);
-            ws.current?.send(JSON.stringify({ content: '', file_url: data.file_url, type: 'file' }));
-        } catch (err) { alert("Upload Failed"); }
+            setNotification(null);
+            if (ws.current?.readyState === WebSocket.OPEN) {
+                ws.current.send(JSON.stringify({ content: '', file_url: data.file_url, type: 'file' }));
+            } else {
+                alert("Uploaded but WS disconnected. Refreshing might show it.");
+            }
+        } catch (err) {
+            console.error(err);
+            setNotification(null);
+            alert("Upload Failed: " + (err.response?.data?.detail || err.message));
+        }
         e.target.value = ''; // Reset input
     };
 
@@ -255,7 +326,7 @@ function App() {
             } catch (clipErr) {
                 prompt("Copy this invite link:", url);
             }
-        } catch (e) { alert("Error: You probably need to be the owner to invite."); }
+        } catch (e) { alert("Error: " + (e.response?.data?.detail || "Could not create invite")); }
     };
 
     const handleLogout = () => {
@@ -263,9 +334,14 @@ function App() {
         setUser(null);
         setSelectedRoom(null);
         setMyRooms([]);
+        window.location.reload(); // Hard reload to clear all state
     };
 
     const myRoomIds = new Set(myRooms.map(r => r.id));
+
+    // Filter rooms based on search
+    const filteredCommunity = communityRooms.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const filteredUserspace = userspaceRooms.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return (
         <div className="flex h-screen bg-white text-slate-900 font-sans overflow-hidden">
@@ -285,7 +361,7 @@ function App() {
                         <button onClick={() => setActiveTab('userspaces')} className={`flex-1 py-1.5 rounded-md transition-all ${activeTab === 'userspaces' ? 'bg-white shadow text-black' : 'text-slate-500 hover:text-slate-700'}`}>Userspaces</button>
                     </div>
                     <div className="relative">
-                        <Search className="absolute left-2.5 top-2 text-slate-400" size={14} />
+                        <Search className="absolute left-2.5 top-2.5 text-slate-400" size={14} />
                         <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Filter rooms..." className="w-full pl-8 pr-3 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:border-blue-500" />
                     </div>
                 </div>
@@ -295,14 +371,16 @@ function App() {
                     <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         {activeTab === 'community' ? 'Official Channels' : 'Community Rooms'}
                     </div>
-                    {(activeTab === 'community' ? communityRooms : userspaceRooms)
-                        .filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    {(activeTab === 'community' ? filteredCommunity : filteredUserspace)
                         .map(r => (
                             <button key={r.id} onClick={() => handleRoomSelect(r)} className={`w-full text-left px-3 py-2 rounded-md flex items-center justify-between group transition-colors ${selectedRoom?.id === r.id ? 'bg-blue-100 text-blue-800' : 'text-slate-600 hover:bg-slate-200'}`}>
                                 <span className="truncate font-medium flex-1"># {r.name}</span>
                                 {myRoomIds.has(r.id) && <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>}
                             </button>
                         ))}
+                    {(activeTab === 'community' ? filteredCommunity : filteredUserspace).length === 0 && (
+                        <div className="text-xs text-slate-400 px-3 py-2">No rooms found.</div>
+                    )}
                 </div>
 
                 {/* My Rooms (Pinned Bottom) */}
@@ -377,6 +455,11 @@ function App() {
 
                         {/* Messages */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30">
+                            {isConnecting && (
+                                <div className="flex items-center justify-center p-4 text-slate-500 gap-2">
+                                    <Loader className="animate-spin" size={16} /> Connecting to chat...
+                                </div>
+                            )}
                             {messages.map((msg) => {
                                 const isMe = msg.author.id === user?.id;
                                 const isOwner = msg.author.id === selectedRoom.owner_id;
@@ -395,8 +478,8 @@ function App() {
                                                 {msg.content}
                                                 {msg.file_url && (
                                                     <div className="mt-2 pt-2 border-t border-white/20">
-                                                        {/\.(jpg|jpeg|png|gif)$/i.test(msg.file_url) ? (
-                                                            <img src={msg.file_url} alt="Attachment" className="max-w-full rounded-lg cursor-pointer max-h-60" onClick={() => window.open(msg.file_url, '_blank')} />
+                                                        {/\.(jpg|jpeg|png|gif|webp)$/i.test(msg.file_url) ? (
+                                                            <img src={msg.file_url} alt="Attachment" className="max-w-full rounded-lg cursor-pointer max-h-60 object-cover" onClick={() => window.open(msg.file_url, '_blank')} />
                                                         ) : (
                                                             <a href={msg.file_url} target="_blank" className="flex items-center gap-2 hover:underline text-xs"><Paperclip size={14} /> View Attachment</a>
                                                         )}
@@ -421,8 +504,9 @@ function App() {
                                     onKeyDown={e => e.key === 'Enter' && handleSend()}
                                     className="flex-1 bg-transparent border-none focus:ring-0 text-sm placeholder:text-slate-400 text-slate-800"
                                     placeholder={`Message #${selectedRoom.name}...`}
+                                    disabled={isConnecting}
                                 />
-                                <button onClick={handleSend} className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"><Send size={18} /></button>
+                                <button onClick={handleSend} disabled={isConnecting} className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm disabled:grayscale"><Send size={18} /></button>
                             </div>
                         </div>
                     </>
@@ -433,7 +517,7 @@ function App() {
                         </div>
                         <h3 className="text-2xl font-bold text-slate-700 mb-2">Welcome to OpenChat</h3>
                         <p className="max-w-xs text-center text-slate-500">Pick a channel from the left sidebar to start talking.</p>
-                        <button onClick={() => setCreateRoomModalOpen(true)} className="mt-8 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">Create New Space</button>
+                        <button onClick={() => user ? setCreateRoomModalOpen(true) : setLoginModalOpen(true)} className="mt-8 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">Create New Space</button>
                     </div>
                 )}
 
