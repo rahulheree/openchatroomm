@@ -470,7 +470,7 @@ function App() {
         if (apiUrl.startsWith("http")) {
             // We are using a remote backend (like Render)
             const wsProtocol = apiUrl.startsWith("https") ? "wss" : "ws";
-             # Remove protocol(http / https) and use the rest
+            // Remove protocol(http / https) and use the rest
             const hostPath = apiUrl.replace(/^https?:\/\//, "");
             wsUrl = `${wsProtocol}://${hostPath}/ws/${selectedRoom.id}`;
         } else {
