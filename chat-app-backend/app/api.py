@@ -180,6 +180,15 @@ async def get_room_messages(
     return await crud.get_messages_for_room(db, room_id=room_id, skip=skip, limit=limit)
 
 
+@router.get("/session/token")
+async def get_session_token(request: Request, current_user: models.User = Depends(get_current_user)):
+    """Reflects the session ID back to the client for WS auth."""
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=401, detail="No session")
+    return {"token": session_id}
+
+
 # WebSockets 
 @router.websocket("/ws/{room_id}")
 async def websocket_endpoint(
@@ -187,7 +196,14 @@ async def websocket_endpoint(
     room_id: int,
     db: AsyncSession = Depends(get_db),
 ):
+    await websocket.accept() # Accept first to send close frame properly if needed? No, wait.
+    # FastAPI usually handles auth before accept if possible, but here we need to read query/cookie.
+    
     session_id = websocket.cookies.get("session_id")
+    if not session_id:
+        # Fallback to query param
+        session_id = websocket.query_params.get("token")
+
     if not session_id:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
