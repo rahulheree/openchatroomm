@@ -14,6 +14,7 @@ const apiClient = axios.create({ baseURL: getBaseUrl(), ... });
 
 export const startSession = (name) => apiClient.post("/session/start", { name });
 export const getMySession = () => apiClient.get("/session/me");
+export const getSessionToken = () => apiClient.get("/session/token");
 
 export const createRoom = (roomData) => apiClient.post("/rooms", roomData);
 export const getCommunityRooms = () => apiClient.get("/rooms/community");
