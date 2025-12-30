@@ -1,43 +1,16 @@
 import axios from "axios";
 
-const getBaseUrl = () => {
-  let url = import.meta.env.VITE_API_URL;
-  if (!url) return "http://localhost:8000/api/v1";
-
-  if (!url.endsWith("/api/v1")) {
-    // Remove trailing slash if present then add /api/v1
-    url = url.replace(/\/$/, "") + "/api/v1";
-  }
-  return url;
-};
-
+// Using relative path to leverage Vercel rewrites (proxy)
 const apiClient = axios.create({
-  baseURL: getBaseUrl(),
+  baseURL: "/api/v1",
   withCredentials: true,
 });
 
-// const apiClient = axios.create({
-//   baseURL: "http://localhost:8000/api/v1",
-//   withCredentials: true,
-// });
-
-// const apiClient = axios.create({
-//   baseURL: process.env.REACT_APP_API_URL || "http://localhost:8000/api/v1",
-//   withCredentials: true,
-// });
-
-// import axios from "axios";
-
-// const apiClient = axios.create({
-//   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1",
-//   withCredentials: true,
-// });
-
-// export default apiClient;
-
-
-
-
+/* 
+// Previous logic:
+const getBaseUrl = () => { ... }
+const apiClient = axios.create({ baseURL: getBaseUrl(), ... });
+*/
 
 export const startSession = (name) => apiClient.post("/session/start", { name });
 export const getMySession = () => apiClient.get("/session/me");
@@ -61,7 +34,7 @@ export const createInvite = (roomId) => apiClient.post(`/rooms/${roomId}/invite`
  * @param {string} token - The UUID token from the invite link.
  * @returns {Promise<AxiosResponse<any>>}
  */
-export const getRoomByInvite = (token) => apiClient.get(`/invite/${token}`); // 👈 ADD THIS FUNCTION
+export const getRoomByInvite = (token) => apiClient.get(`/invite/${token}`);
 
 export const uploadFile = (file) => {
   const formData = new FormData();
@@ -71,9 +44,4 @@ export const uploadFile = (file) => {
   });
 };
 
-
-
-
-
-
-
+export default apiClient;
