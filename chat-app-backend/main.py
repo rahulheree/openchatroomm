@@ -201,11 +201,11 @@ origins = [
 
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
 if allowed_origins_env:
-    origins.extend(allowed_origins_env.split(","))
+    origins.extend([origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"], # Allow ALL origins to fix Vercel -> Render WS issues
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
