@@ -315,8 +315,12 @@ function App() {
             ws.current.send(JSON.stringify({ content: messageInput, type: 'text' }));
             setMessageInput("");
         } else {
-            alert("Connection lost. Refreshing...");
-            window.location.reload();
+            // Don't reload, just notify
+            setNotification("Not connected yet. Please wait...");
+            // Try to reconnect if it looks dead
+            if (!isConnecting && (!ws.current || ws.current.readyState === WebSocket.CLOSED)) {
+                setSelectedRoom({ ...selectedRoom }); // Trigger effect to reconnect
+            }
         }
     };
 
