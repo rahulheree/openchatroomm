@@ -463,52 +463,97 @@ function App() {
         };
         fetchRoomDetails();
 
-        // Determine WS URL based on VITE_API_URL or fallback to current host
-        const apiUrl = import.meta.env.VITE_API_URL || "";
-        let wsUrl;
+        const connectWebSocket = async () => {
+            try {
+                // Get token first
+                await new Promise(r => setTimeout(r, 0)); // Ensure async context
 
-        if (apiUrl.startsWith("http")) {
-            // We are using a remote backend (like Render)
-            const wsProtocol = apiUrl.startsWith("https") ? "wss" : "ws";
-            // Remove protocol(http / https) and use the rest
-            const hostPath = apiUrl.replace(/^https?:\/\//, "");
-            wsUrl = `${wsProtocol}://${hostPath}/ws/${selectedRoom.id}`;
-        } else {
-            // Fallback for local development or relative proxy
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            wsUrl = `${wsProtocol}//${window.location.host}/api/v1/ws/${selectedRoom.id}`;
-        }
-        const socket = new WebSocket(wsUrl);
-        ws.current = socket;
+                // Import getSessionToken if not imported in file context, assuming it is from api.js
+                // Actually we need to make sure getSessionToken is imported.
+                // But since I am editing the inside of useEffect, I rely on imports at top.
 
-        socket.onmessage = (event) => {
-            const messageData = JSON.parse(event.data);
+                // Wait, I need to make sure getSessionToken is imported? 
+                // Assuming I will add import later or it is already there?
+                // No, I need to add import. But I can't in this block.
+                // JS hoisting? No.
+                // Wait, I already added export to api.js. I need to add import to App.jsx.
+                // I will skip import for now and assume I can add it, or use apiClient directly if not imported?
+                // Let's assume I fix import in a separate call.
 
-            if (messageData.room_id === selectedRoom.id) {
-                setMessages((prev) => {
-                    if (prev.some(msg => msg.id === messageData.id)) return prev;
-                    return [...prev, messageData];
-                });
-            }
+                // Actually, let's use apiClient directly if needed, but getSessionToken is cleaner.
+                // I'll assume getSessionToken is available (I will add import next).
 
-            if (notifiedMessageIds.current.has(messageData.id)) return;
+                // const { data } = await getSessionToken(); 
+                // To be safe, I will just call the API endpoint using the existing `apiClient` if I can find it?
+                // apiClient is defined in `api.js` but `App.jsx` imports `apiClient`? No.
+                // `App.jsx` imports `axios`.
 
-            if (messageData.author.id === user.id) return;
+                // Let's look at imports in App.jsx.
+                // Line 5: import axios from "axios";
+                // Line 7: const apiClient = axios.create(...)
 
-            notifiedMessageIds.current.add(messageData.id);
+                // So `apiClient` IS defined in App.jsx!
+                // Wait, `App.jsx` defines its OWN `apiClient` at line 7?
+                // Let me check file viewer Step 495.
+                // Yes:
+                // 7: const apiClient = axios.create({ baseURL: "/api/v1", ... })
 
-            setMyRooms(prev => prev.map(room => room.id === messageData.room_id ? { ...room, unread_count: (room.unread_count || 0) + 1 } : room));
+                // So I can just use `apiClient.get("/session/token")` inside `App.jsx`.
 
-            if (!document.hasFocus() || messageData.room_id !== selectedRoom.id) {
-                const notifyingRoom = myRooms.find(r => r.id === messageData.room_id);
-                if (notifyingRoom) {
-                    showBrowserNotification(notifyingRoom, messageData);
+                const { data } = await apiClient.get("/session/token");
+                const sessionToken = data.token;
+
+                const apiUrl = import.meta.env.VITE_API_URL || "";
+                let wsUrl;
+
+                if (apiUrl.startsWith("http")) {
+                    const wsProtocol = apiUrl.startsWith("https") ? "wss" : "ws";
+                    // Remove protocol(http / https) and use the rest
+                    const hostPath = apiUrl.replace(/^https?:\/\//, "");
+                    wsUrl = `${wsProtocol}://${hostPath}/ws/${selectedRoom.id}?token=${sessionToken}`;
+                } else {
+                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    wsUrl = `${wsProtocol}//${window.location.host}/api/v1/ws/${selectedRoom.id}?token=${sessionToken}`;
                 }
+
+                const socket = new WebSocket(wsUrl);
+                ws.current = socket;
+
+                socket.onmessage = (event) => {
+                    const messageData = JSON.parse(event.data);
+
+                    if (messageData.room_id === selectedRoom.id) {
+                        setMessages((prev) => {
+                            if (prev.some(msg => msg.id === messageData.id)) return prev;
+                            return [...prev, messageData];
+                        });
+                    }
+
+                    if (notifiedMessageIds.current.has(messageData.id)) return;
+
+                    if (messageData.author.id === user.id) return;
+
+                    notifiedMessageIds.current.add(messageData.id);
+
+                    setMyRooms(prev => prev.map(room => room.id === messageData.room_id ? { ...room, unread_count: (room.unread_count || 0) + 1 } : room));
+
+                    if (!document.hasFocus() || messageData.room_id !== selectedRoom.id) {
+                        const notifyingRoom = myRooms.find(r => r.id === messageData.room_id);
+                        if (notifyingRoom) {
+                            showBrowserNotification(notifyingRoom, messageData);
+                        }
+                    }
+                };
+
+                socket.onclose = () => console.log("WebSocket disconnected from", selectedRoom.name);
+                socket.onerror = (err) => console.error("WebSocket error:", err);
+
+            } catch (err) {
+                console.error("WS Connect error:", err);
             }
         };
 
-        socket.onclose = () => console.log("WebSocket disconnected from", selectedRoom.name);
-        socket.onerror = (err) => console.error("WebSocket error:", err);
+        connectWebSocket();
 
         return () => {
             if (socket) socket.close();
