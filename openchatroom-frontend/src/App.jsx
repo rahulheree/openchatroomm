@@ -63,6 +63,8 @@ const showBrowserNotification = (room, message) => {
 const LoginModal = ({ onLogin, onClose }) => {
     const [name, setName] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="w-full max-w-sm p-6 bg-white rounded-xl shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -70,9 +72,11 @@ const LoginModal = ({ onLogin, onClose }) => {
                 <h2 className="text-xl font-bold mb-2 text-center text-slate-800">Welcome Back</h2>
                 <p className="text-xs text-center text-slate-500 mb-6">Enter your display name to continue or recover your account.</p>
 
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="Display Name (e.g. Rahul)" className="w-full p-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none font-medium" autoFocus />
+                {error && <div className="mb-4 p-2 bg-red-50 text-red-600 text-xs rounded border border-red-100">{error}</div>}
 
-                <button onClick={() => { setIsLoading(true); startSession(name).then(r => onLogin(r.data)).catch(e => { alert(e.response?.data?.detail || "Login failed"); setIsLoading(false); }) }} disabled={isLoading || !name.trim()} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                <input value={name} onChange={e => { setName(e.target.value); setError(null); }} placeholder="Display Name (e.g. Rahul)" className="w-full p-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none font-medium" autoFocus />
+
+                <button onClick={() => { setIsLoading(true); startSession(name).then(r => onLogin(r.data)).catch(e => { setError(e.response?.data?.detail || "Login failed"); setIsLoading(false); }) }} disabled={isLoading || !name.trim()} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                     {isLoading ? "Entering..." : "Continue"}
                 </button>
             </motion.div>
@@ -84,15 +88,16 @@ const CreateRoomModal = ({ onClose, onRoomCreated, userRole }) => {
     const [name, setName] = useState("");
     const [isPublic, setIsPublic] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     const handleCreate = async () => {
-        if (!name.trim()) return alert("Name required");
+        if (!name.trim()) return setError("Name required");
         setIsLoading(true);
         try {
             const { data } = await createRoom({ name, is_public: isPublic });
             onRoomCreated(data);
             onClose();
-        } catch (e) { alert("Error: " + (e.response?.data?.detail || e.message)); setIsLoading(false); }
+        } catch (e) { setError("Error: " + (e.response?.data?.detail || e.message)); setIsLoading(false); }
     };
 
     return (
