@@ -72,7 +72,7 @@ async def get_room_with_details(db: AsyncSession, room_id: int) -> Optional[mode
 async def get_community_rooms(db: AsyncSession, skip: int, limit: int) -> List[models.Room]:
     query = (
         select(models.Room)
-        .filter(models.Room.is_community == True)
+        .filter(models.Room.is_community == True, models.Room.is_public == True)
         .options(selectinload(models.Room.owner))
         .offset(skip)
         .limit(limit)
