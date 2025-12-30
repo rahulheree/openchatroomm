@@ -73,7 +73,6 @@ async def list_community_rooms(skip: int = 0, limit: int = 20, db: AsyncSession 
 
 
 @router.get("/rooms/userspaces", response_model=List[schemas.PublicRoomFeedItem])
-@cache(expire=0)
 async def list_userspace_rooms(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
     rooms = await crud.get_userspace_rooms(db, skip=skip, limit=limit)
     feed = []
