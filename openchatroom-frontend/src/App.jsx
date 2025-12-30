@@ -138,10 +138,11 @@ const CreateRoomModal = ({ onClose, onRoomCreated, userRole }) => {
 const JoinByInviteModal = ({ onClose, onJoin }) => {
     const [link, setLink] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     const handleJoin = async () => {
         const token = link.match(/\/invite\/([a-zA-Z0-9-]+)/)?.[1] || link.trim();
-        if (!token) return alert("Invalid Link Format");
+        if (!token) return setError("Invalid Link Format");
 
         setIsLoading(true);
         try {
@@ -150,7 +151,7 @@ const JoinByInviteModal = ({ onClose, onJoin }) => {
             await onJoin(data);
             onClose();
         } catch (e) {
-            alert(e.response?.data?.detail || "Invalid or Expired Invite");
+            setError(e.response?.data?.detail || "Invalid or Expired Invite");
             setIsLoading(false);
         }
     };
@@ -159,7 +160,8 @@ const JoinByInviteModal = ({ onClose, onJoin }) => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4" onClick={onClose}>
             <motion.div className="w-full max-w-md p-6 bg-white rounded-xl shadow-2xl" onClick={e => e.stopPropagation()}>
                 <h2 className="text-xl font-bold mb-4">Join via Link</h2>
-                <input value={link} onChange={e => setLink(e.target.value)} placeholder="Paste invite link or token..." className="w-full p-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" />
+                {error && <div className="mb-4 p-2 bg-red-50 text-red-600 text-xs rounded border border-red-100">{error}</div>}
+                <input value={link} onChange={e => { setLink(e.target.value); setError(null); }} placeholder="Paste invite link or token..." className="w-full p-3 border rounded-lg mb-4 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none" />
                 <button onClick={handleJoin} disabled={isLoading} className="w-full p-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50">
                     {isLoading ? "Joining..." : "Join Space"}
                 </button>
