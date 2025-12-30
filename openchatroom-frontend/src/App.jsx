@@ -130,6 +130,7 @@ function App() {
 
     // Initial Load
     useEffect(() => {
+        console.log("DISCORD UI VERSION 2.0 CONNECTED 🚀");
         getMySession().then(r => setUser(r.data)).catch(() => { });
         // Poll My Rooms
         const loadMyRooms = () => getMyRooms().then(r => setMyRooms(r.data)).catch(console.error);
