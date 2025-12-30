@@ -143,9 +143,11 @@ function App() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isMembersVisible, setMembersVisible] = useState(false);
     const [isProfileOpen, setProfileOpen] = useState(false);
+    const [messageInput, setMessageInput] = useState("");
 
     const ws = useRef(null);
     const messagesEndRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     // Initial Load
     useEffect(() => {
@@ -210,23 +212,24 @@ function App() {
     // Handlers
     const handleRoomSelect = async (room) => {
         if (!user) return setLoginModalOpen(true);
-        if (!myRooms.find(r => r.id === room.id)) {
-            await joinRoom(room.id);
-            setMyRooms(p => [...p, room]);
-        }
-        setSelectedRoom(room);
-        setMembersVisible(false); // Reset on room switch (optional)
-        // Ensure My Rooms list updates unread count
-        setMyRooms(p => p.map(r => r.id === room.id ? { ...r, unread_count: 0 } : r));
+        try {
+            if (!myRooms.find(r => r.id === room.id)) {
+                await joinRoom(room.id);
+                setMyRooms(p => [...p, room]);
+            }
+            setSelectedRoom(room);
+            setMembersVisible(false);
+            setMyRooms(p => p.map(r => r.id === room.id ? { ...r, unread_count: 0 } : r));
+        } catch (e) { alert("Could not join: " + JSON.stringify(e)); }
     };
 
     const handleSend = () => {
-        const input = document.getElementById('msg-input');
-        const content = input.value.trim();
-        if (!content) return;
+        if (!messageInput.trim()) return;
         if (ws.current?.readyState === WebSocket.OPEN) {
-            ws.current.send(JSON.stringify({ content, type: 'text' }));
-            input.value = '';
+            ws.current.send(JSON.stringify({ content: messageInput, type: 'text' }));
+            setMessageInput("");
+        } else {
+            alert("Connecting... please wait.");
         }
     };
 
@@ -234,19 +237,25 @@ function App() {
         const file = e.target.files[0];
         if (!file) return;
         try {
+            // Creating a temporary message or loading state could be nice here
             const { data } = await uploadFile(file);
             ws.current?.send(JSON.stringify({ content: '', file_url: data.file_url, type: 'file' }));
         } catch (err) { alert("Upload Failed"); }
+        e.target.value = ''; // Reset input
     };
 
     const handleInvite = async () => {
         try {
             const { data } = await createInvite(selectedRoom.id);
             const url = `${window.location.origin}/invite/${data.token}`;
-            navigator.clipboard.writeText(url);
-            setNotification("Invite Copied!");
-            setTimeout(() => setNotification(null), 3000);
-        } catch (e) { alert("Error making invite"); }
+            try {
+                await navigator.clipboard.writeText(url);
+                setNotification("Invite Copied to Clipboard!");
+                setTimeout(() => setNotification(null), 3000);
+            } catch (clipErr) {
+                prompt("Copy this invite link:", url);
+            }
+        } catch (e) { alert("Error: You probably need to be the owner to invite."); }
     };
 
     const handleLogout = () => {
@@ -262,7 +271,7 @@ function App() {
         <div className="flex h-screen bg-white text-slate-900 font-sans overflow-hidden">
 
             {/* LEFT SIDEBAR - ALWAYS VISIBLE */}
-            <aside className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col flex-shrink-0 z-20">
+            <aside className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col flex-shrink-0 z-20 hidden md:flex">
                 {/* App Header in Sidebar */}
                 <div className="h-14 flex items-center px-4 font-black text-lg tracking-tight text-slate-800 border-b border-slate-200 bg-white">
                     <div className="w-7 h-7 bg-blue-600 text-white rounded flex items-center justify-center mr-2"><Hash size={18} /></div>
@@ -329,10 +338,16 @@ function App() {
 
             {/* MAIN CHAT AREA */}
             <main className="flex-1 flex flex-col min-w-0 bg-white relative">
+                {/* Mobile Header (Hidden on Desktop) */}
+                <header className="md:hidden h-14 border-b border-slate-200 flex items-center justify-between px-4">
+                    <div className="font-bold flex items-center gap-2"><div className="w-6 h-6 bg-blue-600 rounded text-white flex items-center justify-center"><Hash size={14} /></div> OC</div>
+                    <button onClick={() => setMembersVisible(true)}><Users size={20} /></button>
+                </header>
+
                 {selectedRoom ? (
                     <>
-                        {/* Chat Header */}
-                        <header className="h-14 flex items-center justify-between px-4 border-b border-slate-200 flex-shrink-0 z-10 bg-white">
+                        {/* Chat Header (Desktop) */}
+                        <header className="h-14 hidden md:flex items-center justify-between px-4 border-b border-slate-200 flex-shrink-0 z-10 bg-white">
                             <div>
                                 <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                                     <Hash size={20} className="text-slate-400" />
@@ -380,7 +395,11 @@ function App() {
                                                 {msg.content}
                                                 {msg.file_url && (
                                                     <div className="mt-2 pt-2 border-t border-white/20">
-                                                        <a href={msg.file_url} target="_blank" className="flex items-center gap-1 hover:underline text-xs"><Paperclip size={12} /> {msg.file_url.split('/').pop().substring(0, 20)}...</a>
+                                                        {/\.(jpg|jpeg|png|gif)$/i.test(msg.file_url) ? (
+                                                            <img src={msg.file_url} alt="Attachment" className="max-w-full rounded-lg cursor-pointer max-h-60" onClick={() => window.open(msg.file_url, '_blank')} />
+                                                        ) : (
+                                                            <a href={msg.file_url} target="_blank" className="flex items-center gap-2 hover:underline text-xs"><Paperclip size={14} /> View Attachment</a>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -394,18 +413,27 @@ function App() {
                         {/* Input Area */}
                         <div className="p-4 bg-white border-t border-slate-200">
                             <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-lg p-1.5 focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-400 transition-all shadow-sm">
-                                <button onClick={() => document.querySelector('#file-upload').click()} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Paperclip size={20} /></button>
-                                <input type="file" id="file-upload" className="hidden" onChange={handleFileUpload} />
-                                <input id="msg-input" onKeyDown={e => e.key === 'Enter' && handleSend()} className="flex-1 bg-transparent border-none focus:ring-0 text-sm peer" placeholder={`Message #${selectedRoom.name}...`} />
+                                <button onClick={() => fileInputRef.current?.click()} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Paperclip size={20} /></button>
+                                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+                                <input
+                                    value={messageInput}
+                                    onChange={e => setMessageInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && handleSend()}
+                                    className="flex-1 bg-transparent border-none focus:ring-0 text-sm placeholder:text-slate-400 text-slate-800"
+                                    placeholder={`Message #${selectedRoom.name}...`}
+                                />
                                 <button onClick={handleSend} className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"><Send size={18} /></button>
                             </div>
                         </div>
                     </>
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-300">
-                        <MessageSquare size={64} className="mb-4 opacity-50" />
-                        <h3 className="text-xl font-bold text-slate-700">OpenChat Dashboard</h3>
-                        <p className="max-w-xs text-center text-slate-500 mt-2">Select a channel from the sidebar to start chatting.</p>
+                    <div className="flex flex-col items-center justify-center h-full text-slate-300 bg-slate-50/50">
+                        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+                            <MessageSquare size={40} className="text-slate-400" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-slate-700 mb-2">Welcome to OpenChat</h3>
+                        <p className="max-w-xs text-center text-slate-500">Pick a channel from the left sidebar to start talking.</p>
+                        <button onClick={() => setCreateRoomModalOpen(true)} className="mt-8 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">Create New Space</button>
                     </div>
                 )}
 
@@ -424,10 +452,12 @@ function App() {
                         initial={{ width: 0, opacity: 0 }}
                         animate={{ width: 260, opacity: 1 }}
                         exit={{ width: 0, opacity: 0 }}
-                        className="bg-slate-50 border-l border-slate-200 flex flex-col flex-shrink-0 overflow-hidden"
+                        className="bg-slate-50 border-l border-slate-200 flex flex-col flex-shrink-0 overflow-hidden absolute md:relative right-0 h-full z-40 shadow-xl md:shadow-none"
                     >
-                        <div className="h-14 flex items-center px-4 font-bold text-slate-700 border-b border-slate-200 bg-white">
-                            Members <span className="ml-2 bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{members.length}</span>
+                        <div className="h-14 flex items-center px-4 font-bold text-slate-700 border-b border-slate-200 bg-white justify-between">
+                            <span>Members</span>
+                            <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs">{members.length}</span>
+                            <button onClick={() => setMembersVisible(false)} className="md:hidden"><Minimize size={18} /></button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2">
                             {members.map(m => (
