@@ -205,7 +205,8 @@ if allowed_origins_env:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allow ALL origins to fix Vercel -> Render WS issues
+    # allow_origins=["*"], # Invalid with allow_credentials=True
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|.*\.vercel\.app|.*\.onrender\.com)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
