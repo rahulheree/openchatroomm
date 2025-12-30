@@ -17,7 +17,7 @@ export const getMySession = () => apiClient.get("/session/me");
 
 export const createRoom = (roomData) => apiClient.post("/rooms", roomData);
 export const getCommunityRooms = () => apiClient.get("/rooms/community");
-export const getUserspaceRooms = () => apiClient.get("/rooms/userspaces");
+export const getUserspaceRooms = () => apiClient.get(`/rooms/userspaces?t=${Date.now()}`);
 export const getMyRooms = () => apiClient.get("/rooms/my");
 export const getRoom = (roomId) => apiClient.get(`/rooms/${roomId}`);
 export const deleteRoom = (roomId) => apiClient.delete(`/rooms/${roomId}`);
