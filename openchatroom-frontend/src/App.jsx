@@ -88,6 +88,23 @@ const LoginModal = ({ onLogin, onClose }) => {
 const CreateRoomModal = ({ onClose, onRoomCreated }) => {
     const [name, setName] = useState("");
     const [isPublic, setIsPublic] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleCreate = async () => {
+        if (!name.trim()) return alert("Please enter a room name!");
+        setIsLoading(true);
+        try {
+            const { data } = await createRoom({ name, is_public: isPublic });
+            onRoomCreated(data);
+            onClose();
+        } catch (err) {
+            console.error(err);
+            alert("Failed to create room: " + (err.response?.data?.detail || err.message));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white neo-card p-8 w-full max-w-md relative">
@@ -98,7 +115,9 @@ const CreateRoomModal = ({ onClose, onRoomCreated }) => {
                     <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="w-6 h-6 border-3 border-black rounded focus:ring-0 text-black" />
                     <label className="font-bold text-lg">MAKE IT PUBLIC?</label>
                 </div>
-                <button onClick={() => createRoom({ name, is_public: isPublic }).then(r => { onRoomCreated(r.data); onClose(); })} className="w-full neo-btn bg-[#fca5a5] py-3 text-xl hover:bg-[#f87171]">LAUNCH 🚀</button>
+                <button onClick={handleCreate} disabled={isLoading} className="w-full neo-btn bg-[#fca5a5] py-3 text-xl hover:bg-[#f87171]">
+                    {isLoading ? "LAUNCHING..." : "LAUNCH 🚀"}
+                </button>
             </motion.div>
         </div>
     );
