@@ -3,123 +3,68 @@
 @tailwind utilities;
 
 :root {
-  --color-mint: #86efac;
-  --color-peach: #fca5a5;
-  --color-sky: #7dd3fc;
-  --color-lemon: #fde047;
-  --color-lavender: #d8b4fe;
-  --color-rose: #fda4af;
-  --border-thick: 3px solid #000000;
-  --shadow-hard: 5px 5px 0px 0px #000000;
-  --shadow-float: 8px 8px 0px 0px rgba(0,0,0,0.8);
+  --bg-primary: #36393f;
+  --bg-secondary: #2f3136;
+  --bg-tertiary: #202225;
+  --channel-list: #2f3136;
+  --server-list: #202225;
+  --chat-bg: #36393f;
+  --header: #36393f;
+  --text-normal: #dcddde;
+  --text-muted: #72767d;
+  --interactive-normal: #b9bbbe;
+  --interactive-hover: #dcddde;
+  --interactive-active: #fff;
+  --brand: #5865F2;
+  --brand-hover: #4752c4;
 }
 
 body {
-  font-family: 'Fredoka', sans-serif;
-  background-color: #fce7f3; /* Light pink background */
-  background-image: radial-gradient(#bae6fd 1.5px, transparent 1.5px), radial-gradient(#bae6fd 1.5px, #fce7f3 1.5px);
-  background-size: 20px 20px;
-  background-position: 0 0, 10px 10px;
-  color: #111;
-  overflow-x: hidden;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  overflow: hidden;
 }
 
-h1, h2, h3, h4, h5, h6, .font-hand {
-  font-family: 'Fredoka', cursive;
-}
-
-p, span, input, textarea, button {
-  font-family: 'Fredoka', sans-serif;
-  font-weight: 500;
-}
-
-/* Scrollbar Styling */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 12px;
+  width: 8px;
+  height: 8px;
+  background-color: #2f3136;
 }
-::-webkit-scrollbar-track {
-  background: #fff;
-  border-left: 3px solid #000;
-}
+
 ::-webkit-scrollbar-thumb {
-  background: #000;
-  border: 3px solid #fff;
-  border-radius: 99px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #333;
+  background-color: #202225;
+  border-radius: 4px;
 }
 
-/* Custom Utilities for Neo-Brutalism */
-.neo-card {
-  background: white;
-  border: 3px solid #000;
-  box-shadow: 5px 5px 0px 0px #000;
-  border-radius: 16px;
-  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+::-webkit-scrollbar-track {
+  background-color: #2f3136;
 }
 
-.neo-card:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 7px 7px 0px 0px #000;
+.discord-btn {
+  background-color: var(--brand);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 3px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.2s;
 }
 
-.neo-btn {
-  border: 3px solid #000;
-  box-shadow: 3px 3px 0px 0px #000;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  transition: all 0.1s;
-  border-radius: 12px;
+.discord-btn:hover {
+  background-color: var(--brand-hover);
 }
 
-.neo-btn:active {
-  transform: translate(3px, 3px);
-  box-shadow: 0px 0px 0px 0px #000;
-}
-
-.neo-input {
-  border: 3px solid #000;
-  box-shadow: 3px 3px 0px 0px #00000020;
-  border-radius: 12px;
-  font-weight: 600;
-  transition: all 0.2s;
-}
-
-.neo-input:focus {
+.discord-input {
+  background-color: #40444b;
+  border: none;
+  color: var(--text-normal);
+  padding: 10px;
+  border-radius: 4px;
   outline: none;
-  box-shadow: 5px 5px 0px 0px #000;
-  transform: translate(-1px, -1px);
 }
 
-/* Floating Animation */
-@keyframes float {
-  0% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-8px) rotate(1deg); }
-  100% { transform: translateY(0px) rotate(0deg); }
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-.animate-float-delayed {
-  animation: float 5s ease-in-out infinite 1.5s;
-}
-
-/* Doodle Patterns */
-.pattern-dots {
-  background-image: radial-gradient(#000 1px, transparent 1px);
-  background-size: 10px 10px;
-}
-
-.pattern-lines {
-  background: repeating-linear-gradient(
-    45deg,
-    #00000010,
-    #00000010 2px,
-    transparent 2px,
-    transparent 10px
-  );
+.discord-input:focus {
+  outline: none;
 }
