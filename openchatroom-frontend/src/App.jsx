@@ -5,8 +5,9 @@ import { Hash, Send, Plus, Link, Trash2, LogOut, Paperclip, MessageSquare, Users
 import axios from "axios";
 
 // --- CONFIG ---
-const API_URL = "/api/v1"; // Proxied via Vercel for HTTP
-const WS_URL = "wss://openchatroomm.onrender.com/api/v1/ws"; // DIRECT to Render for WS (Bypass Vercel)
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_URL = isLocal ? "http://localhost:8000/api/v1" : "/api/v1";
+const WS_URL = isLocal ? "ws://localhost:8000/api/v1/ws" : "wss://openchatroomm.onrender.com/api/v1/ws";
 
 // --- API CLIENT ---
 const apiClient = axios.create({
