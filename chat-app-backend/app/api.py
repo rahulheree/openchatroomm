@@ -28,8 +28,12 @@ async def start_session(
     user_in: schemas.UserCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    user = await crud.get_user_by_name(db, name=user_in.name)
+    # Normalize name to lowercase to ensure persistence
+    normalized_name = user_in.name.strip().lower()
+    user = await crud.get_user_by_name(db, name=normalized_name)
     if not user:
+        # Create with normalized name
+        user_in.name = normalized_name
         user = await crud.create_user(db, user=user_in)
 
     session_id = security.create_session_id()
