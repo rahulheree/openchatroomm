@@ -2,69 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-primary: #36393f;
-  --bg-secondary: #2f3136;
-  --bg-tertiary: #202225;
-  --channel-list: #2f3136;
-  --server-list: #202225;
-  --chat-bg: #36393f;
-  --header: #36393f;
-  --text-normal: #dcddde;
-  --text-muted: #72767d;
-  --interactive-normal: #b9bbbe;
-  --interactive-hover: #dcddde;
-  --interactive-active: #fff;
-  --brand: #5865F2;
-  --brand-hover: #4752c4;
-}
-
-body {
-  background-color: var(--bg-tertiary);
-  color: var(--text-normal);
-  font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  overflow: hidden;
-}
-
-/* Custom Scrollbar */
+/* Custom Scrollbar for Webkit Browsers */
 ::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
-  background-color: #2f3136;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: #202225;
-  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background-color: #2f3136;
+  background: #f1f5f9;
 }
 
-.discord-btn {
-  background-color: var(--brand);
-  color: white;
-  padding: 10px 16px;
-  border-radius: 3px;
-  font-weight: 500;
-  font-size: 14px;
-  transition: background-color 0.2s;
-}
-
-.discord-btn:hover {
-  background-color: var(--brand-hover);
-}
-
-.discord-input {
-  background-color: #40444b;
-  border: none;
-  color: var(--text-normal);
-  padding: 10px;
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
   border-radius: 4px;
-  outline: none;
 }
 
-.discord-input:focus {
-  outline: none;
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
