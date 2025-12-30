@@ -66,6 +66,7 @@ You have two great options for the Database: **Supabase** or **Neon**.
     | `MINIO_SECRET_KEY` | Your Supabase Secret Key |
     | `MINIO_BUCKET` | `chat-files` |
     | `MINIO_SECURE` | `True` |
+    | `RENDER` | `true` (Triggers Secure Cookies for HTTPS) |
     | `SESSION_SECRET_KEY` | Generate a random string (e.g., `supersecretkey123`) |
     | `ALLOWED_ORIGINS` | Your Netlify URL (e.g., `https://openchatroom.netlify.app`) |
     | `PYTHON_VERSION` | `3.11.0` (Optional, good practice) |
@@ -88,13 +89,8 @@ You have two great options for the Database: **Supabase** or **Neon**.
 
 ## Step 5: Final Connection
 1.  Go back to **Render** (Backend).
-2.  We need to allow the Netlify Frontend to talk to the Backend (CORS).
-3.  Wait... The current code in `main.py` has hardcoded CORS origins (`localhost`).
-4.  **YOU MUST UPDATE `main.py`** to include your Netlify URL or allow all (for testing).
-    -   Check `chat-app-backend/main.py`.
-    -   Add `os.getenv("FRONTEND_URL")` to the `origins` list?
-    -   Or just add `https://openchatroom.netlify.app` once you know it.
-    -   *Ideally*, update `main.py` to read `ALLOWED_ORIGINS` from env.
+2.  **Environment Variables**: Ensure you added `RENDER = true`.
+3.  **CORS is Automatic**: The code now automatically allows connections from `localhost`, `vercel.app`, and `onrender.com`.
 
 ## Troubleshooting
 -   **Database Error**: "driver not found"? We patched `database.py` to handle `postgres://` -> `postgresql+asyncpg://` automatically.

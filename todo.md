@@ -3,10 +3,10 @@
 * polish overall for with dummy chat content +  faker py / faker js
 
 ## changes
-- convert this to a uv project (astral)
-- bug fixes
-- standalone chat page
-- use minio for storage files etc
+- [x] convert this to a uv project (astral)
+- [x] bug fixes (Connection, CORS, Cookies, Alerts)
+- [x] standalone chat page
+- [x] use minio for storage files etc
 - scalar docs instead swagger
 - use prometius, grafana to monitor backend and server
 - locust for load testing
