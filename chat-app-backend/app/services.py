@@ -12,7 +12,7 @@ class ConnectionManager:
         self.active_connections: Dict[int, Set[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, room_id: int):
-        await websocket.accept()
+
         if room_id not in self.active_connections:
             self.active_connections[room_id] = set()
         self.active_connections[room_id].add(websocket)
