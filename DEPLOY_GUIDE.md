@@ -97,3 +97,5 @@ You have two great options for the Database: **Supabase** or **Neon**.
 -   **Images not loading**: Check `MINIO_ENDPOINT` does not have `https://` prefix, just the domain.
 -   **CORS Errors**: Check Browser Console. If you see CORS error, you need to update `main.py` origins.
 
+<!-- uvicorn main:app --reload
+.\minio.exe server "C:\minio-data" --address ":9000" --console-address ":9001" -->

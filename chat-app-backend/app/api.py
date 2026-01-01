@@ -39,12 +39,14 @@ async def start_session(
     session_id = security.create_session_id()
     await crud.create_session(db, user_id=user.id, session_id=session_id)
 
+    # Dynamic Cookie Security
+    is_production = os.getenv("RENDER") is not None
     response.set_cookie(
         key="session_id",
         value=session_id,
         httponly=True,
-        secure=True,         # Must be True for SameSite=None
-        samesite="none"      # Required for Cross-Site (Vercel -> Render)
+        secure=is_production,          # False on Localhost (HTTP), True on Render (HTTPS)
+        samesite="none" if is_production else "lax"  # Lax is better for local dev
     )
     return user
 
