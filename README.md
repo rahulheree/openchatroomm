@@ -1,6 +1,6 @@
 # OpenChatRoom 🚀
 
-A powerful, modern, real-time chat application built for speed and scalability. OpenChatRoom supports public communities, private user spaces, real-time messaging, and file sharing.
+A powerful, modern, real-time cha application built for speed and scalability. OpenChatRoom supports public communities, private user spaces, real-time messaging, and file sharing.
 
 ![OpenChatRoom Demo](https://via.placeholder.com/800x400?text=OpenChatRoom+Preview)
 
