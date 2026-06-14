@@ -5,7 +5,7 @@ A powerful, modern, real-time cha application built for speed and scalability. O
 ![OpenChatRoom Demo](https://via.placeholder.com/800x400?text=OpenChatRoom+Preview)
 
 ## ✨ Features
-
+ 
 *   **Real-time Messaging**: Instant communication using WebSockets (FastAPI + Redis Pub/Sub).
 *   **Room Management**:
     *   **Community Rooms**: Admin-managed public spaces.
