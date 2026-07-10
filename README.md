@@ -1,4 +1,4 @@
- # OpenChatRoom 🚀  
+ # OpenChatRoom 🚀
 
 A powerful, modern, real-time cha application built for speed and scalability. OpenChatRoom supports public communities, private user spaces, real-time messaging, and file sharing.
 
